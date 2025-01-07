@@ -1,0 +1,11 @@
+name = "QuantiCam"
+uuid = "42916ebc-e1b0-4bae-bca4-6df6ee911bda"
+authors = ["Cristi Bourceanu <bourceanu.cristi@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
+OpalKelly = "2ded009d-9eb5-4ecb-959a-f285e843cda4"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
