@@ -1,3 +1,5 @@
+export QUANTICAM_BANK
+
 const QUANTICAM_BANK::Dict{} = Dict{BankEnum, BankInfo}(
 VBD                         => BankInfo(0x0 , 12, 0 ),
 VEB                         => BankInfo(0x1 , 12, 0 ),

@@ -20,6 +20,8 @@ macro show_error(expr)
   end
 end
 
+element_size(qc::QCBoard)::UInt = if qc.byte_select 1 else 2 end
+
 function leds_test()
   bitfile = joinpath(@__DIR__, "../hw/First.bit")
   fpga = FPGA(bitfile)

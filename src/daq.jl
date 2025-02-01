@@ -49,18 +49,18 @@ function focus_image(qc::QCBoard, number_of_frames::Int)
     end
     plotIntensityImage(qc, data, 1)
   end
-  activate_trigger_in(qc.okComms, qc.bank, TRIGGER_END_CAPTURE)
+  activate_trigger_in(qc, TRIGGER_END_CAPTURE)
   data # Return last frame
 end
 
-function capture_TCSPC_frames(qc::QCBoard, number_of_frames)
+function capture_TCSPC_frames(qc::QCBoard, number_of_frames)::Vector{UInt16}
   # Captures the requested amount of data (size) from the sensor.
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
   words = number_of_frames * qc.frame_size
   packet = 1024
   frame_size_bytes = qc.frame_size * 2
-  data_8bits = fill(UInt8(0), words*2)
+  data_16bits = fill(UInt16(0), words)
 
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
@@ -68,11 +68,10 @@ function capture_TCSPC_frames(qc::QCBoard, number_of_frames)
     while get_wire_out_value(qc, EP_READY) == 0
       # Wait until the transfer from fifo is ready
     end
-    data_8bits[(i-1)*frame_size_bytes+1:i*frame_size_bytes] = read_from_block_pipe_out(qc, FIFO_OUT, packet, frame_size_bytes, frame_size_bytes)
+    data_16_bits_dyn = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.frame_size)
+    @debug "Reading block packet_size=$packet, frame_size=$(qc.frame_size); Received: $(length(data_16_bits_dyn)) bytes"
+    data_16bits[(i-1)*qc.frame_size+1:i*qc.frame_size] = data_16_bits_dyn
   end
-  data_8bits_low  = UInt16.(data_8bits[1:2:end])
-  data_8bits_high = UInt16.(data_8bits[2:2:end])
-  data_16bits     = map((x,y)-> x<<8 | y, zip(data_8bits_high, data_8bits_low))
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
   data_16bits

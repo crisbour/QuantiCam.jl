@@ -2,6 +2,8 @@
 # Setup FPGA, Sensor and Configs
 # -------------------------------------
 
+export init_board!
+
 # Initialize FPGA with bitfile provided and settings in FPGA
 function init_board!(qc::QCBoard)
   @info "Opal Kelly to API Comms setup in progress..."
