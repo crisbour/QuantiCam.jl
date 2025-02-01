@@ -59,7 +59,6 @@ function capture_TCSPC_frames(qc::QCBoard, number_of_frames)::Vector{UInt16}
   activate_trigger_in(qc, FIFO_RST)
   words = number_of_frames * qc.frame_size
   packet = 1024
-  frame_size_bytes = qc.frame_size * 2
   data_16bits = fill(UInt16(0), words)
 
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
@@ -68,87 +67,60 @@ function capture_TCSPC_frames(qc::QCBoard, number_of_frames)::Vector{UInt16}
     while get_wire_out_value(qc, EP_READY) == 0
       # Wait until the transfer from fifo is ready
     end
-    data_16_bits_dyn = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.frame_size)
-    @debug "Reading block packet_size=$packet, frame_size=$(qc.frame_size); Received: $(length(data_16_bits_dyn)) bytes"
-    data_16bits[(i-1)*qc.frame_size+1:i*qc.frame_size] = data_16_bits_dyn
+    @info "Reading block packet_size=$packet, frame_size=$(qc.frame_size)"
+    data_16bits[(i-1)*qc.frame_size+1:i*qc.frame_size] = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.frame_size)
   end
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
   data_16bits
 end
 
-
-function streamIntensityFrames(qc::QCBoard, number_of_frames)
-  global last_row
-  rows = (last_row+1)*2
-
+function stream_intensity_frames(qc::QCBoard, number_of_frames)
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
   words = number_of_frames * qc.frame_size
   packet = 1024
-  frame_size_bytes = rows*128*2 #frame size plus header
-  data_8bits = fill(UInt8(0), frame_size_bytes)
+  data_16bits = fill(UInt16(0), qc.frame_size)
 
   ##Setup transfer
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
-  addr, size, bit = qc.bank[FIFO_OUT]
   transfer_ready = 0
 
   for i = 1:number_of_frames
     while(transfer_ready == 0)
         transfer_ready = get_wire_out_value(qc, EP_READY)
     end
-    data_8bits[1:frame_size_bytes] = read_from_block_pipe_out(qc.fpga, addr, packet, frame_size_bytes, frame_size_bytes)
+    data_16bits[1:qc.frame_size] = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.frame_size)
     transfer_ready = 0
 
-    data_8bits_low = UInt16(data_8bits[1:2:end])
-    data_8bits_high = UInt16(data_8bits[2:2:end])
-    data_16bits     = map((x,y)-> x<<8 | y, zip(data_8bits_high, data_8bits_low))
-
-    qc.plotIntensityImage(data_16bits,1)
+    plot_intensity_image(qc, data_16bits, 1)
   end
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
-  data_16bits
 end
 
-
-
-function streamIntensityFramesByteMode(qc::QCBoard, number_of_frames)
-  global last_row
-  rows = (last_row+1)*2
-
+# TODO: Save stream to HDF5 file => Build an async HDF5 collector that each function can stream data to
+function stream_instensity_frames_byte_mode(qc::QCBoard, number_of_frames)
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
-  words = number_of_frames * qc.frame_size
   packet = 1024
-  frame_size_bytes = rows*128 #frame size plus header
-  data_8bits = fill(UInt8(0), frame_size_bytes)
+  data_8bits = fill(UInt8(0), qc.frame_size)
 
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
   transfer_ready = 0
-
-  ##Setup transfer
-  addr, size, bit = qc.bank[FIFO_OUT]
 
   for i = 1:number_of_frames
     while(transfer_ready == 0)
         transfer_ready = get_wire_out_value(qc, EP_READY)
     end
-    data_8bits[1:frame_size_bytes] = read_from_block_pipe_out(qc.fpga, addr, packet, frame_size_bytes, frame_size_bytes)
+    data_8bits[1:qc.frame_size] = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.frame_size; el_size=1)
     transfer_ready = 0
 
-    # TODO: Write data to file
-    #fwrite(fileID,data_8bits,'UInt16')
-
-    qc.plotIntensityImageByteMode(data_8bits,1)
+    plot_intensity_image_byte_mode(qc, data_8bits, 1)
   end
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
-  fclose(fileID)
-  data_8bits
 end
 
-
-function streamG2Tint(qc,number_of_tint)
+function stream_G2_Tint(qc,number_of_tint)
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
 
@@ -191,7 +163,7 @@ end
 
 
 
-function streamG2Components(qc::QCBoard, number_of_tint)
+function stream_G2_components(qc::QCBoard, number_of_tint)
   global last_row
   number_of_rows = (last_row+1)*2
 
@@ -227,9 +199,7 @@ function streamG2Components(qc::QCBoard, number_of_tint)
   data_32bits
 end
 
-
-
-function captureIntensityFramesByteMode(qc::QCBoard,number_of_frames)
+function capture_intensity_frames_byte_mode(qc::QCBoard,number_of_frames)
   global last_row
   rows = (last_row+1)*2
 
@@ -267,8 +237,7 @@ function captureIntensityFramesByteMode(qc::QCBoard,number_of_frames)
   data_8bits
 end
 
-
-function captureG2Tint(qc::QCBoard, number_of_tint)
+function capture_G2_Tint(qc::QCBoard, number_of_tint)
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
 
@@ -301,8 +270,7 @@ function captureG2Tint(qc::QCBoard, number_of_tint)
   data_32bits
 end
 
-
-function capturePixelG2Components(qc, number_of_tint)
+function capture_pixel_G2_components(qc, number_of_tint)
   global last_row
   number_of_rows = (last_row+1)*2
 
