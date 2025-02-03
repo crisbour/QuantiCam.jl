@@ -1,3 +1,7 @@
+# --------------------------------------------------
+# Setup necessary and helper types
+# --------------------------------------------------
+
 @enum SensorStatus begin
   Disconnected
   Connected
@@ -137,4 +141,30 @@ frame_size(qc) = (qc.last_row + 1) * qc.cols
 function cleanup(qc::QCBoard)
   sensor_disconnect(qc)
   finalize(qc.fpga)
+end
+
+
+# --------------------------------------------------
+# Parsing data helper types
+# --------------------------------------------------
+
+struct RowPairHeader
+  marker::UInt8
+  frame_id::UInt8
+  row_cnt::UInt8
+end
+
+# The header is written in big endian
+function parse_header(row_pair::Vector{UInt8})::RowPairHeader
+  header_bytes = row_pair[1:4]
+  #@assert header_bytes[2] == 0 "Expected the reserved byte in the headr to always be 0"
+  if header_bytes[2] != 0
+    @error "Expected the reserved byte in the header to always be 0"
+  end
+  RowPairHeader(header_bytes[4], header_bytes[3], header_bytes[1])
+end
+
+function parse_header(row_pair::Vector{UInt16})::RowPairHeader
+  header_bytes = reverse(reinterpret(UInt8, reverse(row_pair[1:2])))
+  parse_header(header_bytes)
 end

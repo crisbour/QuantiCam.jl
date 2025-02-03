@@ -63,7 +63,7 @@ Arguments
 - `el_size::UInt`: Size of one element in bytes = {1,2}
 ...
 """
-function read_from_block_pipe_out(qc::QCBoard, pipename::BankEnum, blksize::Integer, frame_size::Integer; psize::Union{Nothing,UInt}=nothing, el_size=2)::Vector{UInt16}
+function read_from_block_pipe_out(qc::QCBoard, pipename::BankEnum, blksize::Integer, frame_size::Integer; psize::Union{Nothing,UInt}=nothing, el_size=1)::Vector{UInt16}
   @assert el_size == 1 || el_size == 2 "Element size not supported"
   data_8bits::Vector{UInt8} = fill(UInt8(0), frame_size*el_size)
   # Check that bank exists
@@ -73,6 +73,7 @@ function read_from_block_pipe_out(qc::QCBoard, pipename::BankEnum, blksize::Inte
     (addr, size, bit) = convert(Tuple, qc.bank[pipename])
     # Read {1,2} bytes per element
     data_8bits = OKExtended.read_from_block_pipe_out(qc.fpga, addr, blksize, frame_size*el_size)
+    @debug "Read $(length(data_8bits)) bytes from $pipename"
   end
 
   # Parse bytes in element size vector
