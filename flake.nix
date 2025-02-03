@@ -1,17 +1,41 @@
 {
-  description = "A Nix-flake-based C/C++ development environment";
+  description = "Nix flake provide libudev library depenency for OpalKelly FrontPanel API";
 
-  inputs.nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.*.tar.gz";
-
-  outputs = { self, nixpkgs }:
+  inputs = {
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.*.tar.gz";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
+  outputs = { self, nixpkgs, flake-utils, poetry2nix }:
+    flake-utils.lib.eachSystem ["x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin"] (system:
     let
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      forEachSupportedSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
-        pkgs = import nixpkgs { inherit system; };
-      });
+      pkgs = import nixpkgs { inherit system; };
+      python3_visualize = pkgs.python3.withPackages (ps: with ps; [
+        ipython
+        jupyter-core
+        # Include the WebIO extension here
+        (
+          buildPythonPackage rec {
+            pname = "webio_jupyter_extension";
+            version = "0.1.0";
+            src = fetchPypi {
+              inherit pname version;
+              hash = "sha256-m0FJa4bdC1c02Z+YeFumjPSzzXWuXHBLl7usvxmO0rc=";
+            };
+            doCheck = false;
+            propagatedBuildInputs = [
+              # Specify dependencies
+              jupyter-packaging
+            ];
+          }
+        )
+      ]);
+      # NOTE: This uses the directory that was copied in the flake derivation rather than current path
+      # This could be good for CI, but not so good for devShell, where the code changes dynamically
+      # => Use this for CI only
+      pwd = builtins.toString ./.;
     in
     {
-      devShells = forEachSupportedSystem ({ pkgs }: {
+      devShells = {
         default = pkgs.mkShell.override
           {
             # Override stdenv in order to change compiler:
@@ -19,25 +43,18 @@
           }
           {
             packages = with pkgs; [
-              clang-tools
-              cmake
-              codespell
-              conan
-              cppcheck
-              doxygen
-              gtest
-              lcov
-
-              # For C++ development:
+              python3_visualize
               pkg-config
               udev
             ] ++ (if system == "aarch64-darwin" then [ ] else [ gdb ]);
 
             shellHook = ''
               export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.udev}/lib:${pkgs.stdenv.cc.cc.lib}/lib
+              # IJulia doesn't need to be part of this package, as this is necessary just for the example notebooks
+              julia --project -e 'using Pkg; Pkg.add("IJulia"); using IJulia; installkernel("julia-qc", "--project=$(pwd())");'
             '';
           };
-      });
-    };
+        };
+    });
 }
 
