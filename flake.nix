@@ -46,7 +46,28 @@
               python3_visualize
               pkg-config
               udev
+              # GR.jl # Runs even without Xrender and Xext, but cannot save files, so those are required
+              xorg.libXt
+              xorg.libX11
+              xorg.libXrender
+              xorg.libXext
+              stdenv.cc.cc.lib qt5.qtbase qt5Full libGL
+              glxinfo
+              glfw
+              freetype
+              stdenv.cc.cc
             ] ++ (if system == "aarch64-darwin" then [ ] else [ gdb ]);
+
+            env = {
+                PYTHON = "${python3_visualize}/bin/python";
+                JUPYTER = "${python3_visualize}/bin/jupyter";
+            };
+
+            NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+              pkgs.stdenv.cc.cc
+            ];
+
+              #NIX_LD = builtins.readFile "${pkgs.stdenv.cc}/nix-support/dynamic-linker";
 
             shellHook = ''
               export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.udev}/lib:${pkgs.stdenv.cc.cc.lib}/lib
