@@ -56,11 +56,21 @@ end
 # TODO: After raw read, extract header and check it's alligned, all data is parts of a single frame and rows decoded end up in the correct position
 
 # TODO: Define byte_select as a type argument of the QCBoard type, such that we make use of multiple dispatch for this function and make use of the correct data layout for the 2 use cases
-function capture_frames(qc::QCBoard, number_of_frames; plot_channel::Union{Channel, Nothing}=nothing)::Matrix{UInt16}
+function capture_frames(
+  qc::QCBoard,
+  number_of_frames;
+  hdf_channel::Union{Channel{T}, Nothing}=nothing,
+  plot_channel::Union{Channel{T}, Nothing}=nothing
+)::Matrix{UInt16} where T
   # Captures the requested amount of data (size) from the sensor.
   words = number_of_frames * qc.frame_size
   packet = 1024
   data_16bits = fill(UInt16(0), words)
+
+  # Write config attributes of the camera to the HDF5 group
+  if hdf_channel !== nothing
+    put!(hdf_channel, AttributesDict(parse_json(to_json(qc.config))))
+  end
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
