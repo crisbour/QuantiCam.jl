@@ -1,3 +1,5 @@
+using Serde
+
 # --------------------------------------------------
 # Setup necessary and helper types
 # --------------------------------------------------
@@ -70,13 +72,52 @@ STOP_SOURCE_SELECT
 SYNC_DELAY_CLK_CYCLES
 end
 
+ @serde @default_value struct QCConfig
+  # Constants
+  rows::Unsigned                      | 192
+  cols::Unsigned                      | 128
+  # TODO: Add assertion frame_size = | rows*cols or replace field with fn call
+  frame_size::Unsigned                | rows*cols
+
+  # Setup parameters
+  # 192 rows, 128 columns, hex string expressed in little-endian: i.e.
+  row_enables::Vector{UInt8}          | hex2bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+  col_enables::Vector{UInt8}          | hex2bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+
+  tcspc::Unsigned                     | 0
+  second_photon_mode_enable::Unsigned | 0
+  gs_rs_mode::Unsigned                | 1
+  enable_gating::Unsigned             | 0
+  test_col_enable::Unsigned           | 0
+  exposure_time::Unsigned             | 500 #exposure in us
+  delay::Unsigned                     | 10 #multiples of 10ns
+  gate_width::Unsigned                | 2 #multiples of 10ns
+  #fifo_rd_test  | 0
+
+  stop_clk_divider::Unsigned          | 0
+  last_row::Unsigned                  | 95
+  byte_select::Unsigned               | 1
+  byte_select_msb::Unsigned           | 0
+  piso_readout_delay::Unsigned        | 19
+  stop_source_select::Unsigned        | 0
+  sync_delay_clk_cycles::Unsigned     | 0
+end
+
 Base.@kwdef mutable struct QCBoard
+  # --------------------------------------------------
+  # Intrinsic fields
+  # ------------------------------------------------
+
   fpga::FPGA
   bank::Dict{BankEnum, BankInfo}
 
   # TODO: Add thread that disables operations with QCBoard until the timer expires
   # Useful for delays between configurations
   #cooldown::Atomic{Bool} = false
+
+  # --------------------------------------------------
+  # Setup parameters
+  # ------------------------------------------------
 
   # PLL Setup
   which_OK_PLL = nothing
@@ -93,43 +134,24 @@ Base.@kwdef mutable struct QCBoard
   sensor_status::SensorStatus = Disconnected  # Other allowed value is 'Connected'
   firmware_revision::String = ""
 
-  # Constants
-  rows::Unsigned=192
-  cols::Unsigned=128
-  frame_size::Unsigned = rows*cols
-
-  # Setup parameters
-  # 192 rows, 128 columns, hex string expressed in little-endian: i.e.
-  row_enables::Vector{UInt8} = hex2bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
-  col_enables::Vector{UInt8} = hex2bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
-  #col_enables = hex2bytes("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-  #col_enables = hex2bytes("0000000000000000000000000000000F")
-  #col_enables = hex2bytes("00000000000000000000000000000000")
-  tcspc::Unsigned                     = 0
-  second_photon_mode_enable::Unsigned = 0
-  gs_rs_mode::Unsigned                = 1
-  enable_gating::Unsigned             = 0
-  test_col_enable::Unsigned           = 0
-  exposure_time::Unsigned             = 500 #exposure in us
-  delay::Unsigned                     = 10 #multiples of 10ns
-  gate_width::Unsigned                = 2 #multiples of 10ns
-  #fifo_rd_test = 0
-
-  stop_clk_divider::Unsigned          = 0
-  last_row::Unsigned                  = 95
-  byte_select::Unsigned               = 1
-  byte_select_msb::Unsigned           = 0
-  piso_readout_delay::Unsigned        = 19
-  stop_source_select::Unsigned        = 0
-  sync_delay_clk_cycles::Unsigned     = 0
-
+  # --------------------------------------------------
+  # Config parameters
+  # ------------------------------------------------
+  config::QCConfig
 end
 
-function QCBoard(bitfile::String, bank::Dict{BankEnum, BankInfo})::QCBoard
+
+function QCBoard(bitfile::String, bank::Dict{BankEnum, BankInfo}, config_path::Union{Nothing, AbstractString}=nothing)::QCBoard
   # Init library and default FPGA values
   fpga = FPGA(bitfile)
+  # Get confis
+  qc_config = if config_path !== nothing
+    deser_json(QCConfig, read(config_path))
+  else
+    deser_json(QCConfig, "{}")
+  end
   # Setup with FPGA and correct register banks
-  qc = QCBoard(fpga=fpga, bank=bank)
+  qc = QCBoard(fpga=fpga, bank=bank, config = qc_config)
   finalizer(cleanup, qc)
   qc
 end
