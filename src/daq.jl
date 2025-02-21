@@ -32,14 +32,14 @@ function focus_image(qc::QCBoard, number_of_frames::Int)
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
 
-  words = number_of_frames * qc.frame_size
+  words = number_of_frames * qc.config.frame_size
   packet = 512
-  data = fill(UInt16(0), qc.frame_size)
+  data = fill(UInt16(0), qc.config.frame_size)
 
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   for j = 1:number_of_frames
-    for i = 1:(qc.frame_size ÷ packet)
+    for i = 1:(qc.config.frame_size ÷ packet)
       while get_wire_out_value(qc, EP_READY) == 0
         # Wait until the transfer from fifo is ready
       end
@@ -63,7 +63,7 @@ function capture_frames(
   plot_channel::Union{Channel{T}, Nothing}=nothing
 )::Matrix{UInt16} where T
   # Captures the requested amount of data (size) from the sensor.
-  words = number_of_frames * qc.frame_size
+  words = number_of_frames * qc.config.frame_size
   packet = 1024
   data_16bits = fill(UInt16(0), words)
 
@@ -75,31 +75,31 @@ function capture_frames(
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
-  dummy_read = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.frame_size; el_size=element_size(qc))
+  dummy_read = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.config.frame_size; el_size=element_size(qc))
 
   for i = 1:number_of_frames
     while get_wire_out_value(qc, EP_READY) == 0
       # Wait until the transfer from fifo is ready
     end
-    @info "Reading block packet_size=$packet, frame_size=$(qc.frame_size)"
-    frame_data = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.frame_size; el_size=element_size(qc))
+    @info "Reading block packet_size=$packet, frame_size=$(qc.config.frame_size)"
+    frame_data = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.config.frame_size; el_size=element_size(qc))
 
     # Send frame data to plotting channel, which will handle this concurently
     if plot_channel !== nothing
       put!(plot_channel, frame_data)
     end
 
-    data_16bits[(i-1)*qc.frame_size+1:i*qc.frame_size] = frame_data
+    data_16bits[(i-1)*qc.config.frame_size+1:i*qc.config.frame_size] = frame_data
   end
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
   # Organize rows read from middle outwards in a matrix format
-  frame_cast(data_16bits, qc.rows, qc.cols)
+  frame_cast(data_16bits, qc.config.rows, qc.config.cols)
 end
 
 function capture_raw(qc::QCBoard)::Vector{UInt8}
   # Captures the requested amount of data (size) from the sensor.
-  bytes = qc.frame_size # * 2
+  bytes = qc.config.frame_size # * 2
   packet = 1024
   data_8bits::Vector{UInt8} = fill(UInt8(0), bytes)
 
@@ -110,12 +110,12 @@ function capture_raw(qc::QCBoard)::Vector{UInt8}
   while get_wire_out_value(qc, EP_READY) == 0
     # Wait until the transfer from fifo is ready
   end
-  @info "Reading block packet_size=$packet, frame_size=$(qc.frame_size)"
+  @info "Reading block packet_size=$packet, frame_size=$(qc.config.frame_size)"
   data_8bits = read_from_block_pipe_out(qc, FIFO_OUT, packet, bytes; el_size=element_size(qc))
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
 
-  frame_check(data_8bits, qc.rows, qc.cols; el_size=element_size(qc))
+  frame_check(data_8bits, qc.config.rows, qc.config.cols; el_size=element_size(qc))
   data_8bits
 end
 
@@ -162,9 +162,9 @@ end
 
 function stream_G2_components(qc::QCBoard, number_of_tint)
   packet = 1024
-  tint_frame_size_bytes = 64*qc.rows*17*4 #Monitor channel + 16 bins for each tint per pixel. 4 bytes for each bin (32 bits)
+  tint_frame_size_bytes = 64*qc.config.rows*17*4 #Monitor channel + 16 bins for each tint per pixel. 4 bytes for each bin (32 bits)
   data_8bits = fill(UInt8(0), tint_frame_size_bytes)
-  data_32bits = zeros(64*qc.rows*17)
+  data_32bits = zeros(64*qc.config.rows*17)
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
@@ -256,7 +256,7 @@ end
 
 function capture_pixel_G2_components(qc, number_of_tint; hdf5_collector::Channel)
   packet = 1024
-  tint_frame_size_bytes = 64*qc.rows*17*4 #Monitor channel + 16 bins for each tint per pixel. 4 bytes for each bin (32 bits)
+  tint_frame_size_bytes = 64*qc.config.rows*17*4 #Monitor channel + 16 bins for each tint per pixel. 4 bytes for each bin (32 bits)
   tint_readout_iterations = floor(number_of_tint/8)
   tint_number = 8*tint_readout_iterations
   readout_size = 8*tint_frame_size_bytes

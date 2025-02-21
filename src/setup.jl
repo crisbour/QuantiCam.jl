@@ -27,17 +27,17 @@ function init_board!(qc::QCBoard)
 
   @info "Initialize logic parameters necessary to interact with the sensor"
 
-  set_wire_in_value(qc, STOP_CLK_DIVIDER,      qc.stop_clk_divider     )
-  set_wire_in_value(qc, LAST_ROW,              qc.last_row             )
-  set_wire_in_value(qc, BYTE_SELECT,           qc.byte_select          )
-  set_wire_in_value(qc, BYTE_SELECT_MSB,       qc.byte_select_msb      )
-  set_wire_in_value(qc, PISO_READOUT_DELAY,    qc.piso_readout_delay   )
-  set_wire_in_value(qc, STOP_SOURCE_SELECT,    qc.stop_source_select   )
-  set_wire_in_value(qc, SYNC_DELAY_CLK_CYCLES, qc.sync_delay_clk_cycles)
+  set_wire_in_value(qc, STOP_CLK_DIVIDER,      qc.config.stop_clk_divider     )
+  set_wire_in_value(qc, LAST_ROW,              qc.config.last_row             )
+  set_wire_in_value(qc, BYTE_SELECT,           qc.config.byte_select          )
+  set_wire_in_value(qc, BYTE_SELECT_MSB,       qc.config.byte_select_msb      )
+  set_wire_in_value(qc, PISO_READOUT_DELAY,    qc.config.piso_readout_delay   )
+  set_wire_in_value(qc, STOP_SOURCE_SELECT,    qc.config.stop_source_select   )
+  set_wire_in_value(qc, SYNC_DELAY_CLK_CYCLES, qc.config.sync_delay_clk_cycles)
 
-  set_wire_in_value(qc, ENABLE_GATING,         qc.enable_gating        )
-  set_wire_in_value(qc, DELAY_FROM_STOP,       UInt32(qc.delay)        )
-  set_wire_in_value(qc, GATE_WIDTH,            UInt32(qc.gate_width)   )
+  set_wire_in_value(qc, ENABLE_GATING,         qc.config.enable_gating        )
+  set_wire_in_value(qc, DELAY_FROM_STOP,       UInt32(qc.config.delay)        )
+  set_wire_in_value(qc, GATE_WIDTH,            UInt32(qc.config.gate_width)   )
 
   config_sensor(qc)
 end
@@ -46,14 +46,14 @@ end
 # Configure Sensor
 function config_sensor(qc::QCBoard)
   #Configures the sensor serial interface
-  tcspc = qc.tcspc == 0 ? 1 : qc.tcspc == 1 ? 0 : qc.tcspc
-  second_photon_mode_enable = qc.second_photon_mode_enable == 0 ? 1 : qc.second_photon_mode_enable == 1 ? 0 : qc.second_photon_mode_enable
+  tcspc = qc.config.tcspc == 0 ? 1 : qc.config.tcspc == 1 ? 0 : qc.config.tcspc
+  second_photon_mode_enable = qc.config.second_photon_mode_enable == 0 ? 1 : qc.config.second_photon_mode_enable == 1 ? 0 : qc.config.second_photon_mode_enable
 
-  exposure_time = 100 * qc.exposure_time ÷ 2 #exposure in 20ns steps
+  exposure_time = 100 * qc.config.exposure_time ÷ 2 #exposure in 20ns steps
 
   # Compose byte vector in UInt32 slices, assumming little endian
-  row_enables = reinterpret(UInt32, qc.row_enables)
-  col_enables = reinterpret(UInt32, qc.col_enables)
+  row_enables = reinterpret(UInt32, qc.config.row_enables)
+  col_enables = reinterpret(UInt32, qc.config.col_enables)
 
   @info "Reset sensor and set parameters for the MODE of use"
 
@@ -73,8 +73,8 @@ function config_sensor(qc::QCBoard)
   set_wire_in_value(qc, COL_ENABLES_3, col_enables[4])
 
   set_wire_in_value(qc, TCSPC_MODE                 , UInt32(tcspc                    ))
-  set_wire_in_value(qc, GLOBAL_SHUTTER_MODE        , UInt32(qc.gs_rs_mode            )) # 0 for rolling shutter, 1 for global shutter
-  set_wire_in_value(qc, TEST_COL_ENABLE            , UInt32(qc.test_col_enable       ))
+  set_wire_in_value(qc, GLOBAL_SHUTTER_MODE        , UInt32(qc.config.gs_rs_mode            )) # 0 for rolling shutter, 1 for global shutter
+  set_wire_in_value(qc, TEST_COL_ENABLE            , UInt32(qc.config.test_col_enable       ))
   set_wire_in_value(qc, TEST_COL_SECOND_PHOTON_MODE, UInt32(second_photon_mode_enable))
   set_wire_in_value(qc, EXPOSURE_TIME              , UInt32(exposure_time            ))
   #wireindata(obj.okComms,obj.bank,FRAME_NUMBER,frame_number)
