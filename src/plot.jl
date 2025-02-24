@@ -74,3 +74,29 @@ ylim([0 600]);
 
 drawnow;
 end
+
+# --------------------------------------------------------------------
+# Plotter runner
+# --------------------------------------------------------------------
+
+"""
+The plotter is ran as a separate task to prevent blocking the acquisition from QC. It receives the frame over a channel and displays them in different layous based on an enum received if existent.
+Same architecture is used for the HDF5 collector [@hdf5-collector].
+"""
+
+function plotter_init(::Type{T}; description=Union{String, Nothing}=nothing)::Tuple{Task, Channel{T}} where T
+
+  channel = Channel{T}(1) # SPSC channel
+
+  @info "Spawning plotter thread"
+  task = @spawn plotter_thread(description, channel);
+
+  task, channel
+end
+
+function plotter_thread(description, channel::Channel{T}) where T
+  while isopen(channel)
+    # Receive data from channel
+    # Only read when ready to avoid
+  end
+end
