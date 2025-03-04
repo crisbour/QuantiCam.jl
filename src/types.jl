@@ -77,7 +77,7 @@ end
   rows::Unsigned                      | 192
   cols::Unsigned                      | 128
   # TODO: Add assertion frame_size = | rows*cols or replace field with fn call
-  frame_size::Unsigned                | rows*cols
+  frame_size::Unsigned                | 24576 #rows*cols
 
   # Setup parameters
   # 192 rows, 128 columns, hex string expressed in little-endian: i.e.
@@ -138,6 +138,7 @@ Base.@kwdef mutable struct QCBoard
   # Config parameters
   # ------------------------------------------------
   config::QCConfig
+  # TODO: Is there a way to decorate QCBoard with members of QCConfig?
 end
 
 
@@ -156,19 +157,21 @@ function QCBoard(bitfile::String, bank::Dict{BankEnum, BankInfo}, config_path::U
   qc
 end
 
-QCBoard(bitfile::String) = QCBoard(bitfile, QUANTICAM_BANK)
+QCBoard(bitfile::String, config_path::Union{Nothing,AbstractString}=nothing) = QCBoard(bitfile, QUANTICAM_BANK, config_path)
 
-frame_size(qc) = (qc.last_row + 1) * qc.cols
+frame_size(qc) = 2 * (qc.config.last_row + 1) * qc.config.cols
 
 function cleanup(qc::QCBoard)
   sensor_disconnect(qc)
   finalize(qc.fpga)
 end
 
-
 # --------------------------------------------------
 # Parsing data helper types
 # --------------------------------------------------
+
+# FIXME: Is there a way to define a supertype for this instead of runtime matching?
+const PixelVector = Union{Vector{UInt16}, Vector{UInt8}}
 
 struct RowPairHeader
   marker::UInt8
@@ -177,16 +180,23 @@ struct RowPairHeader
 end
 
 # The header is written in big endian
-function parse_header(row_pair::Vector{UInt8})::RowPairHeader
-  header_bytes = row_pair[1:4]
+function parse_header(row_pair::PixelVector)::RowPairHeader
+  # Header decoding in little endian:
+  # |31    24|23    16|15       8|7      0|
+  # | Marker | Frame  | Reserved | Row    |
+  # But data is streamed in big endian (network fashion)
+  header_bytes = extract_header(row_pair)
   #@assert header_bytes[2] == 0 "Expected the reserved byte in the headr to always be 0"
   if header_bytes[2] != 0
-    @error "Expected the reserved byte in the header to always be 0"
+    @error "Expected the reserved byte in the header to always be 0; Header: $header_bytes"
   end
   RowPairHeader(header_bytes[4], header_bytes[3], header_bytes[1])
 end
 
-function parse_header(row_pair::Vector{UInt16})::RowPairHeader
-  header_bytes = reverse(reinterpret(UInt8, reverse(row_pair[1:2])))
-  parse_header(header_bytes)
+function extract_header(row_pair::Vector{UInt16})::Vector{UInt8}
+  reinterpret(UInt8, row_pair[1:2])
+end
+
+function extract_header(row_pair::Vector{UInt8})::Vector{UInt8}
+  row_pair[1:4]
 end

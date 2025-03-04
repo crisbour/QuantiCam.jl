@@ -63,6 +63,7 @@ Arguments
 - `el_size::UInt`: Size of one element in bytes = {1,2}
 ...
 """
+# WARN: If fifo doesn't have any more elements, the read will be padded with 0 !!! => Fix firmware to avoid this BIG ISSUE
 function read_from_block_pipe_out(qc::QCBoard, pipename::BankEnum, blksize::Integer, frame_size::Integer; psize::Union{Nothing,UInt}=nothing, el_size=1)::Vector{UInt16}
   @assert el_size == 1 || el_size == 2 "Element size not supported"
   data_8bits::Vector{UInt8} = fill(UInt8(0), frame_size*el_size)

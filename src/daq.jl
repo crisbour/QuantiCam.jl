@@ -53,6 +53,32 @@ function focus_image(qc::QCBoard, number_of_frames::Int)
   data # Return last frame
 end
 
+function capture_frame(qc::QCBoard)::Matrix{UInt16}
+  # Captures the requested amount of data (size) from the sensor.
+  words = qc.config.frame_size
+  packet = 1024
+  data_16bits = fill(UInt16(0), words)
+
+  activate_trigger_in(qc, PIX_RST)
+  activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, START_CAPTURE_TRIGGER)
+
+  # FIXME: The frame is not aligned for a reason or another need to fixup the firmware
+  dummy_read = read_from_block_pipe_out(qc, FIFO_OUT, packet, frame_size(qc); el_size=element_size(qc))
+
+  while get_wire_out_value(qc, EP_READY) == 0
+    # Wait until the transfer from fifo is ready
+  end
+  @info "Reading block packet_size=$packet, frame_size=$(frame_size(qc))"
+  frame_data = read_from_block_pipe_out(qc, FIFO_OUT, packet, frame_size(qc); el_size=element_size(qc))
+
+  data_16bits = frame_data
+
+  activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+  # Organize rows read from middle outwards in a matrix format
+  frame_cast(data_16bits, qc.config.rows, qc.config.cols)
+end
+
 # TODO: After raw read, extract header and check it's alligned, all data is parts of a single frame and rows decoded end up in the correct position
 
 # TODO: Define byte_select as a type argument of the QCBoard type, such that we make use of multiple dispatch for this function and make use of the correct data layout for the 2 use cases
@@ -61,7 +87,7 @@ function capture_frames(
   number_of_frames;
   hdf_channel::Union{Channel{T}, Nothing}=nothing,
   plot_channel::Union{Channel{T}, Nothing}=nothing
-)::Matrix{UInt16} where T
+)::Vector{Matrix{UInt16}} where T
   # Captures the requested amount of data (size) from the sensor.
   words = number_of_frames * qc.config.frame_size
   packet = 1024
@@ -75,6 +101,8 @@ function capture_frames(
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
+
+  # FIXME: The frame is not aligned for a reason or another need to fixup the firmware
   dummy_read = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.config.frame_size; el_size=element_size(qc))
 
   for i = 1:number_of_frames
@@ -93,15 +121,16 @@ function capture_frames(
   end
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
-  # Organize rows read from middle outwards in a matrix format
-  frame_cast(data_16bits, qc.config.rows, qc.config.cols)
+
+  # Organize rows read from middle outwards in a matrix format and partition each frame
+  frames_cast(data_16bits, qc.config.rows, qc.config.cols, number_of_frames)
 end
 
 function capture_raw(qc::QCBoard)::Vector{UInt8}
   # Captures the requested amount of data (size) from the sensor.
-  bytes = qc.config.frame_size # * 2
+  bytes = frame_size(qc) * element_size(qc)
   packet = 1024
-  data_8bits::Vector{UInt8} = fill(UInt8(0), bytes)
+  data_8bits::Vector{UInt16} = fill(UInt16(0), bytes)
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
@@ -111,7 +140,7 @@ function capture_raw(qc::QCBoard)::Vector{UInt8}
     # Wait until the transfer from fifo is ready
   end
   @info "Reading block packet_size=$packet, frame_size=$(qc.config.frame_size)"
-  data_8bits = read_from_block_pipe_out(qc, FIFO_OUT, packet, bytes; el_size=element_size(qc))
+  data_8bits = read_from_block_pipe_out(qc, FIFO_OUT, packet, bytes)
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
 

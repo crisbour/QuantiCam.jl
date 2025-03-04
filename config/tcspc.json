@@ -1,0 +1,22 @@
+{
+  "rows": 192,
+  "cols": 128,
+  "frame_size": 24576,
+
+  "tcspc": 0,
+  "second_photon_mode_enable": 0,
+  "gs_rs_mode": 1,
+  "enable_gating": 0,
+  "test_col_enable": 0,
+  "exposure_time": 50,
+  "delay": 10,
+  "gate_width": 2,
+
+  "stop_clk_divider": 0,
+  "last_row": 95,
+  "byte_select": 0,
+  "byte_select_msb": 0,
+  "piso_readout_delay": 19,
+  "stop_source_select": 0,
+  "sync_delay_clk_cycles": 0
+}

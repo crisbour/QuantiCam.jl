@@ -144,6 +144,14 @@ function sensor_disconnect(qc::QCBoard)
   qc.sensor_status = Disconnected # Other allowed value is 'Connected'
 end
 
+# -------------------------------------------------------------------
+# Utils
+# -------------------------------------------------------------------
+
+function reload_config(qc::QCBoard, config_path)
+  qc.config = deser_json(QCConfig, read(config_path))
+end
+
 function get_firmware_rev!(qc::QCBoard)
   # Get firmware revision
   rev = get_wire_out_value(qc, FIRMWARE_REVISION);
