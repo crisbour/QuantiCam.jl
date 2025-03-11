@@ -56,7 +56,7 @@ end
 function capture_frame(qc::QCBoard)::Matrix{UInt16}
   # Captures the requested amount of data (size) from the sensor.
   words = qc.config.frame_size
-  packet = 1024
+  packet = 256
   data_16bits = fill(UInt16(0), words)
 
   activate_trigger_in(qc, PIX_RST)
@@ -90,8 +90,8 @@ function capture_frames(
 )::Vector{Matrix{UInt16}} where T
   # Captures the requested amount of data (size) from the sensor.
   words = number_of_frames * qc.config.frame_size
-  packet = 1024
-  data_16bits = fill(UInt16(0), words)
+  packet = 256
+  data_16bits::Vector{UInt16} = fill(UInt16(0), words)
 
   # Write config attributes of the camera to the HDF5 group
   if hdf_channel !== nothing
@@ -129,7 +129,7 @@ end
 function capture_raw(qc::QCBoard)::Vector{UInt8}
   # Captures the requested amount of data (size) from the sensor.
   bytes = frame_size(qc) * element_size(qc)
-  packet = 1024
+  packet = 256
   data_8bits::Vector{UInt16} = fill(UInt16(0), bytes)
 
   activate_trigger_in(qc, PIX_RST)

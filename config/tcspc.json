@@ -3,7 +3,7 @@
   "cols": 128,
   "frame_size": 24576,
 
-  "tcspc": 0,
+  "tcspc": 1,
   "second_photon_mode_enable": 0,
   "gs_rs_mode": 1,
   "enable_gating": 0,
@@ -14,7 +14,7 @@
 
   "stop_clk_divider": 0,
   "last_row": 95,
-  "byte_select": 0,
+  "byte_select": 1,
   "byte_select_msb": 0,
   "piso_readout_delay": 19,
   "stop_source_select": 0,
