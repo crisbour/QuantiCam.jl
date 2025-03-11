@@ -123,7 +123,7 @@ function capture_frames(
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
 
   # Organize rows read from middle outwards in a matrix format and partition each frame
-  frames_cast(data_16bits, qc.config.rows, qc.config.cols, number_of_frames)
+  frames_cast(data_16bits, qc.config.rows, qc.config.cols, UInt(number_of_frames))
 end
 
 function capture_raw(qc::QCBoard)::Vector{UInt8}

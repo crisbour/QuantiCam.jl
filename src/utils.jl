@@ -57,6 +57,13 @@ function extract_headers(raw_frame::PixelVector, rows::UInt, cols::UInt)::Vector
 end
 
 function partition_row_pairs(raw_frame::PixelVector, rows::UInt, cols::UInt)::Vector{Vector{UInt16}}
+  el_size = if eltype(raw_frame) isa UInt8
+    1
+  elseif eltype(raw_frame) isa UInt16
+    2
+  else
+    @error "Unsupoorted element type for: $(typeof(raw_frame))"
+  end
   frame = Vector{Vector{UInt16}}(undef, rows ÷ 2)
   for (idx, row_pair) in enumerate(partition(raw_frame, cols*2))
     frame[idx] = row_pair
@@ -75,8 +82,11 @@ end
 function frames_cast(raw_frames::PixelVector, rows::UInt, cols::UInt, number_of_frames::UInt)::Vector{Matrix{UInt16}}
   frames::Vector{Matrix{UInt16}} = []
   for raw_frame in partition(raw_frames, rows*cols)
-    new_frame = frame_cast(raw_frame, rows, cols)
+    new_frame = frame_cast(collect(raw_frame), rows, cols)
     push!(frames, new_frame)
+  end
+  if length(frames) != number_of_frames
+    @error "Number of frames parsed: $(length(frames)) != Number of frames expected: $number_of_frames"
   end
   frames
 end
