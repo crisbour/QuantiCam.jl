@@ -60,6 +60,9 @@ function hdf5_collector_init(path::String, ::Type{T}; description=Union{String, 
   # - Probably no, since write first happens to memory and it copies to disk by the DMA
 
   #channel = Channel{T}(0) # unbuffered channel
+  # Add a few buffers to allow for variability between HDF5 writting and frame readout
+  # The larger the number of frames, the slower is to write HDF5
+  # FIXME: Finf out how to chunk it in order to increase write speed
   channel = Channel{H5StreamType{T}}(1) # SPSC channel
 
   # Check that file does not exist, but dirpath exists
@@ -105,6 +108,7 @@ function hdf5_collector_thread(path::String, channel::Channel{H5StreamType{T}}; 
         @error "Horrible error catch pattern in Julia, try to use ResultTypes instead"
         return
       end
+      @debug "Received data to be put in the HDF5 file: $rx"
       if rx isa GroupConfig
         # Create a new group for the data
         # TODO: Write groups name as DAQ function + date/time
@@ -133,8 +137,7 @@ function hdf5_collector_thread(path::String, channel::Channel{H5StreamType{T}}; 
         # Create new dataset if necessary and verify received data matches expected size
         if frames === nothing
           @info "Creating dataset for frames of type: $(eltype(rx)) and size: $((group_config.size, size(rx)...)) in group: $group"
-
-          frames = create_dataset(group, "frames", eltype(rx), (group_config.size, size(rx)...))
+          frames = create_dataset(group, "frames", eltype(rx), (group_config.size, size(rx)...), chunk=(1,size(rx)...))
         end
 
         # Check data size
@@ -152,7 +155,7 @@ function hdf5_collector_thread(path::String, channel::Channel{H5StreamType{T}}; 
 
         # Write data to file
         timestamps[idx] = Dates.now()
-        @info "Writing frame: $frames"
+        @debug "Writing frame: $frames"
         frames[idx,:,:] = rx
       elseif rx isa Terminate
         break
@@ -189,6 +192,8 @@ end
     attr1::Int | 54
     attr2::String | "test string attribute"
     attr3::Float64 | 1.54272
+    attr4::Bool | true
+    #attr5::Vector{UInt8} | hex2bytes("FFFFFFFF")
   end
   put!(hdf5_channel, parse_json(to_json(deser_json(TestAttributes, "{}"))))
 
@@ -209,6 +214,8 @@ end
   @test read_attribute(group, "attr1") == 54
   @test read_attribute(group, "attr2") == "test string attribute"
   @test read_attribute(group, "attr3") == 1.54272
+  @test read_attribute(group, "attr4") == true
+  #@test read_attribute(group, "attr5") == hex2bytes("FFFFFFFF")
   @test read_dataset(group, "frames") == A_stream
 
   close(fid)
