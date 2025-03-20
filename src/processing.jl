@@ -1,93 +1,6 @@
-function check_frame_stream()
-  last_row = 95
-  pixels = 2*(last_row+1)*128
-
-  #TODO: read from HDF5 file or channel
-  data_read = read(channel)
-
-  number_of_frames = data_read.number_of_frames
-  data = data_read.data
-
-  #look for start of the first complete frame (first transfer will probably be a
-  #partial frame which will skew all the other frames by a certain number of
-  #pixels
-  for index = 1:number_of_frames*pixels
-      if(data(index) == 0 && data(index+1) == 0 && data(index+2) == 0 && data(index + pixels - 256) == 0 && data(index + pixels - 255) == 95 && data(index + pixels - 254) == 0)
-          start_index = index+1;
-          break
-      end
-  end
-
-  frame_data = data(start_index:end)
-  remaining_frames = floor(size(frame_data,1)/pixels)
-
-  #check for frame contiguousness
-  for i = 1:remaining_frames
-      frame_number_header_byte2 = frame_data((i-1)*pixels+4)
-      frame_number_header_byte1 = frame_data((i-1)*pixels+3)
-      frame_number_header(i) = bitor(bitshift(frame_number_header_byte2, 8), frame_number_header_byte1)
-  end
-
-  #if there is more than one frame difference between two frames flag the
-  #frame with a 1, otherwise the frame is flagged with a zero
-  for i = 1:remaining_frames-1
-      if((frame_number_header(i+1) - frame_number_header(i)) == 1 || (frame_number_header(i+1) - frame_number_header(i)) == 2^15-1)
-          frame_skip(i) = 0
-      else
-          frame_skip(i) = 1
-      end
-  end
-
-  figure(1)
-  #plots skipped frames (1 means there is more than a difference of 1 frame
-  #between a frame and the next
-  plot(frame_skip(1:end))
-
-  figure(2)
-  #display frames
-  for i = 1:remaining_frames
-      frame = uint8(frame_data((i-1)*pixels+1:i*pixels))
-      plotIntensityImageByteMode(frame,1)
-  end
-end
-
-
-function plotIntensityImageByteMode(data,number_of_frames)
-  row = 1:192; #extra row and col is because surf does not display last row and column as a pixel square otherwise
-  col = 1:128;
-
-  global last_row
-  last_row_actual = last_row + 1
-  rows = last_row_actual*2
-
-  data_reshaped = reshape(data,[128,rows,number_of_frames])
-  data_sum_frames = sum(data_reshaped,3)
-
-  data_image(1:128,1:last_row_actual) = data_sum_frames(1:128,1:2:rows)
-  data_image(1:128,last_row_actual+1:rows) = data_sum_frames(1:128,2:2:rows)
-  data_image(:,1:last_row_actual) = flip(data_image(:,1:last_row_actual),2)
-
-  # mask high DCR pixel
-  load DCR_matrix.mat
-  #pixel_val = (data_image.*DCR_matrix)';
-  pixel_val = data_image'
-
-  h = imagesc(pixel_val);
-  axis image
-  colormap(gray)
-  colorbar;
-  caxis([0 25])
-  drawnow;
-end
-
+#=
 function check_g2_pixel_component_stream()
   pixels = 2*(last_row+1)*64
-
-  #reads in file
-  fclose all
-  fileid = fopen("g2_pixel_data.bin","r")
-  data_read = fread(fileid,"uint16")
-  fclose all
 
   number_of_tint = data_read(1)
   data_8bits = data_read(2:end)
@@ -199,128 +112,58 @@ function check_g2_tint()
   end
 end
 
-function data_image = decodeFrameData(data,number_of_frames)
-  # data_masked = bitand(data,4095);
-  # data_masked(bitand(data_masked,4088)==0) = 4096;
-  # data_decoded = 4096 - data_masked;
-  ##
-  data_masked_coarse = bitshift(bitand(data, hex2dec('ff8')), -3);
-  data_masked_coarse(data_masked_coarse==0) = 512;
-  data_decoded_coarse = 512 - data_masked_coarse;
+=#
 
-  # Fine bits
-  data_decoded_fine = bitxor(bitand(data, hex2dec('7')),hex2dec('7'));
+# --------------------------------------------------
+# Qualify pixel reads to float + nan boxing based on codes
+# --------------------------------------------------
 
-  # Combined
-  data_decoded = bitor(bitshift(data_decoded_coarse, 3), data_decoded_fine);
-  ##
-
-  row = 1:193; #extra row and col is because surf does not display last row and column as a pixel square otherwise
-  col = 1:129;
-
-  data_reshaped = reshape(data_decoded,[128,192,number_of_frames]);
-
-  data_image(1:128,1:96,1:number_of_frames) = data_reshaped(1:128,1:2:192,1:number_of_frames);
-  data_image(1:128,97:192,1:number_of_frames) = data_reshaped(1:128,2:2:192,1:number_of_frames);
-  data_image(:,1:96,:) = flip(data_image(:,1:96,:),2);
-
-  # pixel_val = data_image';
-  # pixel_val(193,:) = 0;
-  # pixel_val(:,129) = 0;
-  #
-  # pixel_data(1:number_of_frames) = data_image(pixel_x_coord,pixel_y_coord,:);
-  # test_column_data = data_image(128,8,:);
-  #
-  # figure(1);
-  # histogram(test_column_data,-0.5:4095.5);
-  #
-  # figure(2);
-  # histogram(pixel_data,4096);
-  #
-  # figure(3);
-  # surf(col,row,pixel_val);
-  # colormap(gray);
-  # colorbar;
-  # view(2);
-  # axis equal;
-
+function filter_code(tdc_pixels::Union{Array{UInt8}, Array{UInt16}})
+  nan_boxed_pixels = similar(tdc_pixels, Float32)
+  # 0x04 is the code for missing data
+  nan_boxed_pixels = map(x-> if(x==0x04) missing else Float32(x) end, tdc_pixels)
+  nan_boxed_pixels
 end
 
-
-function plotIntensityImageByteMode(data,number_of_frames)
-  row = 1:192; #extra row and col is because surf does not display last row and column as a pixel square otherwise
-  col = 1:128;
-
-  global last_row
-  last_row_actual = last_row + 1;
-  rows = last_row_actual*2;
-
-  data_reshaped = reshape(data,[128,rows,number_of_frames]);
-  data_sum_frames = sum(data_reshaped,3);
-
-  data_image(1:128,1:last_row_actual) = data_sum_frames(1:128,1:2:rows);
-  data_image(1:128,last_row_actual+1:rows) = data_sum_frames(1:128,2:2:rows);
-  data_image(:,1:last_row_actual) = flip(data_image(:,1:last_row_actual),2);
-
-  # mask high DCR pixel
-  load DCR_matrix.mat
-  #pixel_val = (data_image.*DCR_matrix)';
-  pixel_val = data_image';
-
-  h = imagesc(pixel_val);
-  axis image
-  colormap(gray)
-  colorbar;
-  caxis([0 25])
-  drawnow;
+# Assume each pixel might have a slightly different ring-oscillator,
+# hence, based on this inferred TDC clock, we convert the timestamp to calibrated qualified timestamps
+function calibrate_tdc(data::Array{Float32}, freq::Array{Float32})
+  data .* (1e9 ./ freq)  # in ns
 end
 
-
-function data_decoded = plotPixelHistogram(data,number_of_frames,pixel_x_coord,pixel_y_coord)
-  # data_masked = bitand(data,4095);
-  # data_masked(bitand(data_masked,4088)==0) = 4096;
-  # data_decoded = 4096 - data_masked;
-  ##
-  data_masked_coarse = bitshift(bitand(data, hex2dec('ff8')), -3);
-  data_masked_coarse(data_masked_coarse==0) = 512;
-  data_decoded_coarse = 512 - data_masked_coarse;
-
-  # Fine bits
-  data_decoded_fine = bitxor(bitand(data, hex2dec('7')),hex2dec('7'));
-
-  # Combined
-  data_decoded = bitor(bitshift(data_decoded_coarse, 3), data_decoded_fine);
-  ##
-
-  row = 1:193; #extra row and col is because surf does not display last row and column as a pixel square otherwise
-  col = 1:129;
-
-  data_reshaped = reshape(data_decoded,[128,192,number_of_frames]);
-
-  data_image(1:128,1:96,1:number_of_frames) = data_reshaped(1:128,1:2:192,1:number_of_frames);
-  data_image(1:128,97:192,1:number_of_frames) = data_reshaped(1:128,2:2:192,1:number_of_frames);
-  data_image(:,1:96,:) = flip(data_image(:,1:96,:),2);
-
-  pixel_val = rot90(mean(data_image,3));
-  pixel_val(193,:) = 0;
-  pixel_val(:,129) = 0;
-
-  pixel_data(1:number_of_frames) = data_image(pixel_x_coord,pixel_y_coord,:);
-  test_column_data = data_image(128,8,:);
-
-  figure(1);
-  histogram(test_column_data,-0.5:4095.5);
-
-  # figure(2);
-  # histogram(pixel_data,4096);
-
-  # figure(3);
-  # surf(col,row,pixel_val);
-  # colormap(gray);
-  # colorbar;
-  # view(2);
-  # axis equal;
-
+# The timestamps will have a delay based on constant line delay + some offset inherent to each SPAD impulse response
+function calibrate_offset(data::Array{Float32}, offset::Array{Float32})
+  data .- offset
 end
 
+# ==================================================
+# TCSPC data decoding of pixels trig->STOP into START->trig
+# ==================================================
+# WARN: This takes the 2s complement yet again for the 12-bit TCSPC value,
+# which shouldn't be necessary
 
+function twos_complement_branching(data::T, size=nothing)::T where T <: Union{UInt8, UInt16}
+  if size === nothing
+    size = sizeof(data) * 8
+  end
+  masked_data = data&(1<<size - 1)
+  if masked_data == 0
+    masked_data = 1<<size
+  end
+  (1<<size) - masked_data
+end
+
+function twos_complement_instr(data::T, bits=nothing)::T where T <: Union{UInt8, UInt16}
+  shamt = 8 * sizeof(data) - bits
+  twos_complement_shifted = -reinterpret(signed(T), data << shamt)
+  twos_complement_shifted_unsigned = reinterpret(T, twos_complement_shifted)
+  twos_complement_shifted_unsigned >> shamt
+end
+
+function decode_frame_data(tdc_pixels::Array{UInt16})
+  #data_decoded = map(pixel -> twos_complement_instr(pixel, 12), tdc_pixels)
+  data_decoded_coarse = map(pixel -> twos_complement_instr(pixel>>3, 9), tdc_pixels)
+  data_decoded_fine = map(pixel -> ~(pixel & 0x7), tdc_pixels)
+  data_decoded = map((coarse, fine) -> coarse<<3 | fine, zip(data_decoded_coarse, data_decoded_fine))
+  data_decoded
+end

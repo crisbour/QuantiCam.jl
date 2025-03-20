@@ -205,23 +205,3 @@ function extract_header(row_pair::Vector{UInt8})::Vector{UInt8}
   row_pair[1:4]
 end
 
-# --------------------------------------------------
-# Qualify pixel reads to float + nan boxing based on codes
-# --------------------------------------------------
-
-function filter_code(tdc_pixels::Union{Array{UInt8}, Array{UInt16}})
-  nan_boxed_pixels = similar(tdc_pixels, Float32)
-  nan_boxed_pixels = map(x-> if(x==0x04) missing else Float32(x) end, tdc_pixels)
-  nan_boxed_pixels
-end
-
-# Assume each pixel might have a slightly different ring-oscillator,
-# hence, based on this inferred TDC clock, we convert the timestamp to calibrated qualified timestamps
-calibrate_tdc(data::Array{Float32}, freq::Array{Float32})
-  data .* (1e9 ./ freq)  # in ns
-end
-
-# The timestamps will have a delay based on constant line delay + some offset inherent to each SPAD impulse response
-calibrate_offset(data::Array{Float32}, offset::Array{Float32})
-  data .- offset
-end

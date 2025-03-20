@@ -15,7 +15,7 @@ include("bank_operations.jl")
 include("setup.jl")
 include("daq.jl")
 include("hdf5_collector.jl")
-#include("processing.jl")
+include("processing.jl")
 #include("plot.jl")
 include("test.jl")
 
