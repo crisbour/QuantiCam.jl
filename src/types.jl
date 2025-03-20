@@ -82,8 +82,8 @@ end
 
   # Setup parameters
   # 192 rows, 128 columns, hex string expressed in little-endian: i.e.
-  row_enables::Vector{UInt8}          | hex2bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
-  col_enables::Vector{UInt8}          | hex2bytes("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")
+  row_enables::String | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+  col_enables::String | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
 
   tcspc::Unsigned                     | 0
   second_photon_mode_enable::Unsigned | 0
@@ -124,9 +124,11 @@ Base.@kwdef mutable struct QCBoard
   which_OK_PLL = nothing
 
   # Power Supplies default values:
-  VDD::Float32    = 1.1 # 1V1 supply
+  # NOTE: Is this the same as V_ddro?
+  VDD::Float32    = 1.1 # ring-oscillator power supply ∈ [0.7, 1.1] V
+  # NOTE: Is this the same as Vdd for the level-shifter or the inverter voltage for SPAD firing
   VDDPIX::Float32 = 2.8 # VDDPIX 3V3 supply
-  VQ::Float32     = 1
+  VQ::Float32     = 1 # Quenching gate voltage
   VEB::Float32    = 0.4
   VNBL::Float32   = 0.5
   VBD::Float32    = 0

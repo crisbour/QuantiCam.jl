@@ -52,8 +52,8 @@ function config_sensor(qc::QCBoard)
   exposure_time = 100 * qc.config.exposure_time ÷ 2 #exposure in 20ns steps
 
   # Compose byte vector in UInt32 slices, assumming little endian
-  row_enables = reinterpret(UInt32, qc.config.row_enables)
-  col_enables = reinterpret(UInt32, qc.config.col_enables)
+  row_enables = reinterpret(UInt32, hex2bytes(qc.config.row_enables))
+  col_enables = reinterpret(UInt32, hex2bytes(qc.config.col_enables))
 
   @info "Reset sensor and set parameters for the MODE of use"
 
