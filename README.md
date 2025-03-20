@@ -74,7 +74,7 @@ on the byte_mode selected:
     - TCSPC:
         | 15:12 | 11:3 | 2:0 |
         | - | - | - |
-        | HEADER\[2:0\] | {C<sub>8,1</sub>, C<sub>0</sub>} | 
+        | HEADER\[2:0\] | {C<sub>8,1</sub>, C<sub>0</sub>} | fine decoded |
 2. Byte select
     - SPC:
         | byte_select_msb | 7:0 |
@@ -84,7 +84,7 @@ on the byte_mode selected:
     - TCSPC:
         | 7:3 | 2:0 |
         | - | - |
-        | {C<sub>3,1</sub>, C<sub>0</sub>} | fine decoded |
+        | {C<sub>4,1</sub>, C<sub>0</sub>} | fine decoded |
 
 > [!WARN]
 > Measurement as 2's complement inversion seems to happen twice, both on FW and
