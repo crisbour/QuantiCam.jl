@@ -1,4 +1,5 @@
 using Serde
+using ResultTypes
 
 # --------------------------------------------------
 # Setup necessary and helper types
@@ -180,7 +181,7 @@ struct RowPairHeader
 end
 
 # The header is written in big endian
-function parse_header(row_pair::PixelVector)::RowPairHeader
+function parse_header(row_pair::PixelVector)::Result{RowPairHeader, ErrorException}#::RowPairHeader#
   # Header decoding in little endian:
   # |31    24|23    16|15       8|7      0|
   # | Marker | Frame  | Reserved | Row    |
@@ -189,6 +190,7 @@ function parse_header(row_pair::PixelVector)::RowPairHeader
   #@assert header_bytes[2] == 0 "Expected the reserved byte in the headr to always be 0"
   if header_bytes[2] != 0
     @error "Expected the reserved byte in the header to always be 0; Header: $header_bytes"
+    return ErrorResult(RowPairHeader, "Expected the reserved byte in the header to always be 0; Header: $header_bytes")
   end
   RowPairHeader(header_bytes[4], header_bytes[3], header_bytes[1])
 end

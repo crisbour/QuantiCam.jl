@@ -69,14 +69,14 @@ function capture_frame(qc::QCBoard)::Matrix{UInt16}
   while get_wire_out_value(qc, EP_READY) == 0
     # Wait until the transfer from fifo is ready
   end
-  @info "Reading block packet_size=$packet, frame_size=$(frame_size(qc))"
+  @debug "Reading block packet_size=$packet, frame_size=$(frame_size(qc))"
   frame_data = read_from_block_pipe_out(qc, FIFO_OUT, packet, frame_size(qc); el_size=element_size(qc))
 
   data_16bits = frame_data
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
   # Organize rows read from middle outwards in a matrix format
-  frame_cast(data_16bits, qc.config.rows, qc.config.cols)
+  unwrap(frame_cast(data_16bits, qc.config.rows, qc.config.cols))
 end
 
 # TODO: After raw read, extract header and check it's alligned, all data is parts of a single frame and rows decoded end up in the correct position
@@ -103,18 +103,20 @@ function capture_frames(
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   # FIXME: The frame is not aligned for a reason or another need to fixup the firmware
-  dummy_read = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.config.frame_size; el_size=element_size(qc))
-
   for i = 1:number_of_frames
     while get_wire_out_value(qc, EP_READY) == 0
       # Wait until the transfer from fifo is ready
     end
-    @info "Reading block packet_size=$packet, frame_size=$(qc.config.frame_size)"
+    @debug "Reading block packet_size=$packet, frame_size=$(qc.config.frame_size)"
     frame_data = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.config.frame_size; el_size=element_size(qc))
 
     # Send frame data to plotting channel, which will handle this concurently
     if plot_channel !== nothing
       put!(plot_channel, frame_data)
+    end
+    if hdf_channel !== nothing
+      frame_matrix = unwrap(frame_cast(frame_data, qc.config.rows, qc.config.cols))
+      put!(hdf_channel, frame_matrix)
     end
 
     data_16bits[(i-1)*qc.config.frame_size+1:i*qc.config.frame_size] = frame_data
@@ -123,7 +125,7 @@ function capture_frames(
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
 
   # Organize rows read from middle outwards in a matrix format and partition each frame
-  frames_cast(data_16bits, qc.config.rows, qc.config.cols, UInt(number_of_frames))
+  unwrap(frames_cast(data_16bits, qc.config.rows, qc.config.cols, UInt(number_of_frames)))
 end
 
 function capture_raw(qc::QCBoard)::Vector{UInt8}
@@ -139,7 +141,7 @@ function capture_raw(qc::QCBoard)::Vector{UInt8}
   while get_wire_out_value(qc, EP_READY) == 0
     # Wait until the transfer from fifo is ready
   end
-  @info "Reading block packet_size=$packet, frame_size=$(qc.config.frame_size)"
+  @debug "Reading block packet_size=$packet, frame_size=$(qc.config.frame_size)"
   data_8bits = read_from_block_pipe_out(qc, FIFO_OUT, packet, bytes)
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
