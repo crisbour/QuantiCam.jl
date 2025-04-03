@@ -2,7 +2,7 @@
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "fc1ea6a364f690801c591b49e8940e7865090490"
+project_hash = "dc41ce578bce77e7af86ad11772db8b78ea23efc"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1185,7 +1185,9 @@ version = "1.3.5+1"
 
 [[deps.OpalKelly]]
 deps = ["CEnum", "Libdl", "Logging", "Printf", "Random", "Test"]
-path = "/home/cristi/Documents/Scripts/Julia/opal-kelly/OpalKelly"
+git-tree-sha1 = "4c4a6a367ad44160497a6e59b23493bca3f6f8e3"
+repo-rev = "main"
+repo-url = "https://github.com/crisbour/OpalKelly.jl"
 uuid = "2ded009d-9eb5-4ecb-959a-f285e843cda4"
 version = "0.4.0"
 
