@@ -16,8 +16,11 @@ struct GroupConfig
 end
 const AttributesDict = Dict{String, Any}
 struct Terminate end
+struct Clear
+  group::String
+end
 
-const H5StreamType{T} = Union{AttributesDict, T, GroupConfig, Terminate}
+const H5StreamType{T} = Union{AttributesDict, T, GroupConfig, Clear, Terminate}
 
 # --------------------------------------------------------------------
 # System Configuration
@@ -113,6 +116,11 @@ function hdf5_collector_thread(path::String, channel::Channel{H5StreamType{T}}; 
         # Create a new group for the data
         # TODO: Write groups name as DAQ function + date/time
         group_config = rx
+        # Instead of needing Clear, we overwrite to speedup experiments
+        if haskey(file, group_config.name)
+          @warn "Group $(group_config.name) already exists, overwriting"
+          delete_object(file[group_config.name])
+        end
         group = create_group(file, group_config.name)
         write_attribute(group, "timestamp", Dates.format(Dates.now(), Dates.ISODateTimeFormat))
         write_attribute(group, "description", group_config.description)
@@ -120,6 +128,11 @@ function hdf5_collector_thread(path::String, channel::Channel{H5StreamType{T}}; 
         timestamps = create_dataset(group, "timestamp", typeof(Dates.now()), (group_config.size,))
         frames = nothing
         idx = 0
+      elseif rx isa Clear
+        # Check if groups exists
+        if haskey(file, rx.group)
+          delete_object(file[rx.group])
+        end
       elseif rx isa AttributesDict
         if group === nothing
           @error "No group defined for attributes"

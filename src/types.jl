@@ -89,7 +89,7 @@ end
   second_photon_mode_enable::Unsigned | 0
   gs_rs_mode::Unsigned                | 1
   enable_gating::Unsigned             | 0
-  test_col_enable::Unsigned           | 0
+  test_col_enable::Unsigned           | 0 # Enable this column to do calibration
   exposure_time::Unsigned             | 500 #exposure in us
   delay::Unsigned                     | 10 #multiples of 10ns
   gate_width::Unsigned                | 2 #multiples of 10ns
