@@ -6,6 +6,8 @@
 
 ## Operation pipeline
 
+[Mermaid
+docs](https://mermaid.js.org/syntax/flowchart.html?id=flowcharts-basic-syntax)
 ```mermaid
 graph LR;
 start-->plot_collector;
@@ -17,9 +19,10 @@ daq-->bank_operations;
 bank_operations-->daq;
 daq-->frame_cast;
 daq-->frame_check;
-daq-->hdf5_channel;
-hdf5_channel-->hdf5_collector;
+daq--hdf5_channel-->hdf5_collector;
+daq--plot_channel-->plot_collector;
 frame_cast-->processing;
+
 ```
 
 ## HDF5 view
