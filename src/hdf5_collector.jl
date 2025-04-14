@@ -97,6 +97,7 @@ function hdf5_collector_thread(path::String, channel::Channel{H5StreamType{T}}; 
   idx = 0
   h5open(path, "cw") do file
     # Create new HDF5 file and write info for self description
+    write_attribute(file, "NX_class", "NXroot")
     if description !== nothing
       write_attribute(file, "description", description)
     end
@@ -114,7 +115,6 @@ function hdf5_collector_thread(path::String, channel::Channel{H5StreamType{T}}; 
       @debug "Received data to be put in the HDF5 file: $rx"
       if rx isa GroupConfig
         # Create a new group for the data
-        # TODO: Write groups name as DAQ function + date/time
         group_config = rx
         # Instead of needing Clear, we overwrite to speedup experiments
         if haskey(file, group_config.name)
@@ -122,7 +122,8 @@ function hdf5_collector_thread(path::String, channel::Channel{H5StreamType{T}}; 
           delete_object(file[group_config.name])
         end
         group = create_group(file, group_config.name)
-        write_attribute(group, "timestamp", Dates.format(Dates.now(), Dates.ISODateTimeFormat))
+        # TODO: Instead of writing attributes for configurations, follow a similar layout as Nexus format and write to dataset, i.e. https://h5web.panosc.eu/h5grove
+        write_dataset(group, "start_time", Dates.format(Dates.now(), Dates.ISODateTimeFormat))
         write_attribute(group, "description", group_config.description)
         # FIXME: Convert DateTime to ISO format instead for interop with other languages
         timestamps = create_dataset(group, "timestamp", typeof(Dates.now()), (group_config.size,))

@@ -4,6 +4,19 @@
 - [X] Plots using Makie
 - [X] Save datasets in HDF5 files with date and description annotation
 
+## Getting started
+
+#### Linux
+If running Nix, just run `nix develop` and everything will be setup for you.
+But if running Linux without `nix`, you just need to reverse the `flake.nix`
+to setup your env in the same way.
+
+#### Windows
+Install the driver required from [FrontPanelUSB
+driver](https://pins.opalkelly.com/downloads).
+
+Julia needs to be installed and added to the Path.
+
 ## Operation pipeline
 
 [Mermaid
@@ -22,7 +35,6 @@ daq-->frame_check;
 daq--hdf5_channel-->hdf5_collector;
 daq--plot_channel-->plot_collector;
 frame_cast-->processing;
-
 ```
 
 ## HDF5 view
