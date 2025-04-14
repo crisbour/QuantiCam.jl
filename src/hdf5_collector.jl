@@ -223,7 +223,7 @@ end
 
   # Tests
   fid = h5open("/tmp/test.h5", "r")
-  @test length(HDF5.get_datasets(fid)) == 2
+  @test length(HDF5.get_datasets(fid)) == 3
   group = fid["test_group"]
   @test read_attribute(group, "attr1") == 54
   @test read_attribute(group, "attr2") == "test string attribute"
