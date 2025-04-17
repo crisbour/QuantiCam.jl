@@ -24,6 +24,9 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Todo = "b28a226c-6cff-11e9-1336-699fd753ab00"
 
+[sources]
+OpalKelly = {url="https://github.com/crisbour/OpalKelly.jl", rev = "main"}
+
 [compat]
 BenchmarkTools = "1.6.0"
 CairoMakie = "0.13.1"
@@ -33,7 +36,7 @@ HDF5 = "0.17.2"
 IJulia = "1.26.0"
 LinearAlgebra = "1.11.0"
 Makie = "0.22.1"
-OpalKelly = "0.5.0"
+OpalKelly = "1.0.0"
 PlotlyJS = "0.18.15"
 Plots = "1.40.9"
 ResultTypes = "4.0.1"
