@@ -6,12 +6,12 @@
   "row_enables": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
   "col_enables": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
 
-  "tcspc": 1,
+  "tcspc": 0,
   "second_photon_mode_enable": 0,
   "gs_rs_mode": 1,
   "enable_gating": 0,
   "test_col_enable": 0,
-  "exposure_time": 1000,
+  "exposure_time": 500,
   "delay": 40,
   "gate_width": 2,
 

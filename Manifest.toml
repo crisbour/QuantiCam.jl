@@ -2,7 +2,7 @@
 
 julia_version = "1.11.3"
 manifest_format = "2.0"
-project_hash = "a0ac6a837bf9816deaa757de21514ec32300b93b"
+project_hash = "5493135eadf42903e81e6ad7315e3745f8cedca9"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -167,6 +167,12 @@ weakdeps = ["SparseArrays"]
 
     [deps.ChainRulesCore.extensions]
     ChainRulesCoreSparseArraysExt = "SparseArrays"
+
+[[deps.CodecLz4]]
+deps = ["Lz4_jll", "TranscodingStreams"]
+git-tree-sha1 = "d58afcd2833601636b48ee8cbeb2edcb086522c2"
+uuid = "5ba52731-8f18-5e0d-9241-30f10d1ec561"
+version = "0.4.6"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -583,6 +589,12 @@ version = "0.11.1"
 git-tree-sha1 = "53bb909d1151e57e2484c3d1b53e19552b887fb2"
 uuid = "42e2da0e-8278-4e71-bc24-59509adca0fe"
 version = "1.0.2"
+
+[[deps.H5Zlz4]]
+deps = ["CodecLz4", "HDF5"]
+git-tree-sha1 = "9d312051e058b52d4683f505e2e8a26514b17d88"
+uuid = "eb20ec05-5464-47b5-ba41-098e3c1068a3"
+version = "0.1.1"
 
 [[deps.HDF4_jll]]
 deps = ["Artifacts", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Zlib_jll", "libaec_jll"]

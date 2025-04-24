@@ -1,4 +1,4 @@
-using HDF5
+using HDF5, H5Zlz4
 using Base.Threads
 using Test
 using Dates
@@ -66,7 +66,7 @@ function hdf5_collector_init(path::String, ::Type{T}; description=Union{String, 
   # Add a few buffers to allow for variability between HDF5 writting and frame readout
   # The larger the number of frames, the slower is to write HDF5
   # FIXME: Finf out how to chunk it in order to increase write speed
-  channel = Channel{H5StreamType{T}}(1) # SPSC channel
+  channel = Channel{H5StreamType{T}}(1) # SPSC channelchunk
 
   # Check that file does not exist, but dirpath exists
   @assert !ispath(path) "HDF5 file $path already exists"
@@ -151,7 +151,13 @@ function hdf5_collector_thread(path::String, channel::Channel{H5StreamType{T}}; 
         # Create new dataset if necessary and verify received data matches expected size
         if frames === nothing
           @info "Creating dataset for frames of type: $(eltype(rx)) and size: $((group_config.size, size(rx)...)) in group: $group"
-          frames = create_dataset(group, "frames", eltype(rx), (group_config.size, size(rx)...), chunk=(1,size(rx)...))
+          # NOTE:  Lz4 performs better with smaller blocks (lower latency), hence 192*128/8192 = 3
+          #frames = create_dataset(
+          #  group, "frames", eltype(rx), (group_config.size, size(rx)...), chunk=(1,size(rx)...),
+          #  filters=Filters.FilterPipeline(Filters.Shuffle(), Lz4Filter(8192)))
+          frames = create_dataset(
+            group, "frames", eltype(rx), (group_config.size, size(rx)...), chunk=(1,size(rx)...),
+            filters=[Lz4Filter(8192)])
         end
 
         # Check data size

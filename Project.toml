@@ -8,6 +8,7 @@ BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 GDAL = "add2ef01-049f-52c4-9ee2-e494f65e021a"
+H5Zlz4 = "eb20ec05-5464-47b5-ba41-098e3c1068a3"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
 IJulia = "7073ff75-c697-5162-941a-fcdaad2a7d2a"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -25,13 +26,14 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Todo = "b28a226c-6cff-11e9-1336-699fd753ab00"
 
 [sources]
-OpalKelly = {url="https://github.com/crisbour/OpalKelly.jl", rev = "main"}
+OpalKelly = {rev = "main", url = "https://github.com/crisbour/OpalKelly.jl"}
 
 [compat]
 BenchmarkTools = "1.6.0"
 CairoMakie = "0.13.1"
 Dates = "1.11.0"
 GDAL = "1.10.0"
+H5Zlz4 = "0.1.1"
 HDF5 = "0.17.2"
 IJulia = "1.26.0"
 LinearAlgebra = "1.11.0"
