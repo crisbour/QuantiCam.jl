@@ -2,6 +2,8 @@
 # Data Acquisition Functions
 # ------------------------------------------------------------------------
 
+export capture_data, capture_frame, capture_frames, capture_raw
+
 # capture data from BTPipeOut
 function capture_data(qc::QCBoard, number_of_frames::Int)::PixelVector
   # Captures the requested amount of data (size) from the sensor.
