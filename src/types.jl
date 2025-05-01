@@ -73,7 +73,10 @@ STOP_SOURCE_SELECT
 SYNC_DELAY_CLK_CYCLES
 end
 
- @serde @default_value struct QCConfig
+ @serde @default_value mutable struct QCConfig
+  # Config filename if derived from JSON
+  config_path::String                 | ""
+
   # Constants
   rows::Unsigned                      | 192
   cols::Unsigned                      | 128
@@ -153,6 +156,9 @@ function QCBoard(bitfile::String, bank::Dict{BankEnum, BankInfo}, config_path::U
     deser_json(QCConfig, read(config_path))
   else
     deser_json(QCConfig, "{}")
+  end
+  if config_path !== nothing
+    qc_config.config_path = config_path
   end
   # Setup with FPGA and correct register banks
   qc = QCBoard(fpga=fpga, bank=bank, config = qc_config)
