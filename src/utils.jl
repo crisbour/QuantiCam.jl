@@ -123,6 +123,33 @@ function partition_row_pairs(raw_frame::Vector{UInt8}, rows::UInt, cols::UInt; e
 end
 
 # =================================================================================
+# ErrorLogger readout
+# =================================================================================
+function read_errors(qc::QCBoard)
+  # Read the errors from the FPGA
+  error_ready = get_wire_out_value(qc, ERROR_READY)
+  if error_ready == 0
+    #@info"No errors found in the FPGA"
+    return
+  end
+  errors = UInt8.(QuantiCam.read_from_pipe_out(qc, QuantiCam.ERROR_FIFO, UInt64(32);el_size=UInt64(1)))
+  # Convert each element for `error` to type QuantiCamError
+  errors_casted = map(error -> QuantiCamError(error), errors)
+  for error_bundle in partition(errors_casted, 4) # Partition the errors into 4 byte chunks
+      error_bundle = collect(error_bundle) # Convert to Vector for easier manipulation
+      while !isempty(error_bundle) && error_bundle[end] == NO_ERROR
+        pop!(error_bundle) # Remove the last NO_ERROR element
+      end
+      # NOTE: ERROR_READOUT_FIFO_FULL is not an error, but a signal that the FIFO is full
+      # and it's useful to see alongside the other errors
+      if !isempty(error_bundle) && error_bundle[1] != ERROR_READOUT_FIFO_FULL
+        @warn "Error found in the FPGA: $(error_bundle)"
+      end
+  end
+end
+
+
+# =================================================================================
 # Misc, functions ported from MATLAB that shouldn't be needed
 # or not sure what they are useful for
 # =================================================================================

@@ -1,6 +1,8 @@
 using Serde
 using ResultTypes
 
+export QuantiCamError
+
 # --------------------------------------------------
 # Setup necessary and helper types
 # --------------------------------------------------
@@ -35,6 +37,8 @@ TEST_COL_ENABLE
 TEST_COL_SECOND_PHOTON_MODE
 TCSPC_MODE
 FIFO_RDOUT_TEST
+ERROR_BACKTRACE
+ENABLE_ERROR_TEST
 FRAME_NUMBER
 EXPOSURE_TIME
 ROW_ENABLES_0
@@ -53,6 +57,7 @@ START_CAPTURE_TRIGGER
 FIFO_RST
 CHIP_RST
 PIX_RST
+ERROR_RST
 TRIGGER_END_CAPTURE
 PROGRESETDAC
 PROGSETDAC
@@ -60,6 +65,7 @@ EP_READY
 WR_DATA_COUNT
 RD_DATA_COUNT
 FIFO_OUT
+ERROR_FIFO
 ENABLE_GATING
 DELAY_FROM_STOP
 GATE_WIDTH
@@ -71,6 +77,7 @@ BYTE_SELECT_MSB
 PISO_READOUT_DELAY
 STOP_SOURCE_SELECT
 SYNC_DELAY_CLK_CYCLES
+ERROR_READY
 end
 
  @serde @default_value mutable struct QCConfig
@@ -105,6 +112,10 @@ end
   piso_readout_delay::Unsigned        | 19
   stop_source_select::Unsigned        | 0
   sync_delay_clk_cycles::Unsigned     | 0
+
+  error_backtrace::Unsigned           | 0 # 0: Forward trace, 1: Backwards trace
+  error_test::Unsigned                | 0 # 1 => Assign least priority line with ERROR_TEST signal
+  fifo_rdout_test::Unsigned           | 0 # Enable readout emulation, to test serialiser->usb readout pipeline
 end
 
 Base.@kwdef mutable struct QCBoard
@@ -211,3 +222,37 @@ function extract_header(row_pair::Vector{UInt8})::Vector{UInt8}
   row_pair[1:4]
 end
 
+# ---------------------------------------------------
+# Error Values
+# ---------------------------------------------------
+@enum QuantiCamError begin
+  NO_ERROR                                     = 0
+  # Readout is ignorant to flow control, hence out_valid |-> out_ready
+  # => Decrease readout speed to avoid backpressure:
+  #   -> Increase piso_readout_delay
+  #   -> Increase exposure_time
+  ERROR_READOUT_NO_BLOCKING                    = 1
+  # ------------------------------------
+  # Pipeline errors
+  # ------------------------------------
+  ERROR_PIXEL_DECODE_BACKPRESSURE_NOT_EXPECTED = 2
+  ERROR_PIXEL_VALUES_PACK_INVALID_HEADER       = 3
+  ERROR_PIXEL_VALUES_PACK_NOT_ZERO_EXTENDED    = 4
+  ERROR_PIXEL_VALUES_PACK_MIXED_ENCODING_ERROR = 5
+  # Frame sync FIFO
+  ERROR_FIFO_SYNCHRONISER_ROW_OVERFLOW         = 6
+  ERROR_FIFO_SYNCHRONISER_COL_OVERFLOW         = 7
+  ERROR_FIFO_SYNCHRONISER_COL_LENGTH_ZERO      = 8
+  ERROR_FIFO_SYNCHRONISER_FRAME_IDX_MISMATCH   = 9
+  ERROR_FIFO_FRAME_COMITTED_BEFORE_END         = 10
+  ERROR_FIFO_SYNCHRONISER_MISSALIGNED          = 11
+  # Readout
+  ERROR_READOUT_FIFO_FULL                      = 12
+  ERROR_READOUT_FIFO_EMPTY                     = 13
+  # Miscellaneous
+  ERROR_CONFIG                                 = 14
+  ERROR_TIMEOUT_ERROR                          = 15
+  ERROR_DATA_INTEGRITY                         = 16
+  ERROR_UNEXPECTED_DATA                        = 17
+  ERROR_TEST                                   = 18
+end
