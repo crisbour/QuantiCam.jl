@@ -3,6 +3,7 @@
 - [X] Calls to safe OpalKelly.jl bindings to the FrontPanel API
 - [X] Plots using Makie
 - [X] Save datasets in HDF5 files with date and description annotation
+- [X] Update QuantiCam API to support the [new FW](https://git.ecdf.ed.ac.uk/lidar-research/instruments/quanticam-vivado)
 
 ## Getting started
 
@@ -83,22 +84,22 @@ on the byte_mode selected:
 
 1. Full readout
     - SPC:
-        | 15:9 | 8:0 |
-        | - | - |
-        | HEADER\[6:0\] | {C<sub>8,1</sub>, SPADWIN} | 
+        | 15:9          | 8:0                        |
+        | ------------- | -------------------------- |
+        | HEADER\[6:0\] | {C<sub>8,1</sub>, SPADWIN} |
     - TCSPC:
-        | 15:12 | 11:3 | 2:0 |
-        | - | - | - |
+        | 15:12         | 11:3                             | 2:0          |
+        | ------------- | -------------------------------- | ------------ |
         | HEADER\[2:0\] | {C<sub>8,1</sub>, C<sub>0</sub>} | fine decoded |
 2. Byte select
     - SPC:
-        | byte_select_msb | 7:0 |
-        | - | - |
-        | 0 | {C<sub>7,1</sub>, SPADWIN} | 
-        | 1 | C<sub>8,1</sub> | 
+        | byte_select_msb | 7:0                        |
+        | --------------- | -------------------------- |
+        | 0               | {C<sub>7,1</sub>, SPADWIN} |
+        | 1               | C<sub>8,1</sub>            |
     - TCSPC:
-        | 7:3 | 2:0 |
-        | - | - |
+        | 7:3                              | 2:0          |
+        | -------------------------------- | ------------ |
         | {C<sub>4,1</sub>, C<sub>0</sub>} | fine decoded |
 
 > [!WARN]
@@ -109,7 +110,7 @@ on the byte_mode selected:
 
 - [ ] Vary delay and observe histogram shifting
 - [ ] Vary gate_width to observe multiple peaks or only one peak
-- [ ] Double check that the raw readout for 16-bits mode is interleaved {col4,
+- [X] Double check that the raw readout for 16-bits mode is interleaved {col4,
 col3, col2, col1, 0 (FIFO empty)}, then make a strategy to fixup the
 backpressure on the FIFO
 - [X] Check trigger in aggregation that could fixup the 16-bits mode issue
