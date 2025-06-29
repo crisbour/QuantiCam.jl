@@ -7,6 +7,23 @@ export QuantiCamError
 # Setup necessary and helper types
 # --------------------------------------------------
 
+@enum PixelMode begin
+    Raw         = 0
+    TCSPC       = 1
+    PhotonCount = 2
+end
+@enum DecodeMode begin
+    Encoded = 0
+    Partial = 1
+    Decoded = 2
+end
+@enum OutputMode begin
+    Standard    = 0
+    Multievents = 1
+    Histogram   = 2
+    Sketch      = 3
+end
+
 @enum SensorStatus begin
   Disconnected
   Connected
@@ -37,6 +54,10 @@ TEST_COL_ENABLE
 TEST_COL_SECOND_PHOTON_MODE
 TCSPC_MODE
 FIFO_RDOUT_TEST
+PIXEL_MODE
+DECODE_MODE
+OUTPUT_MODE
+HEADER_EN
 ERROR_BACKTRACE
 ENABLE_ERROR_TEST
 FRAME_NUMBER
@@ -96,15 +117,19 @@ end
   row_enables::String | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
   col_enables::String | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
 
+  pixel_mode::PixelMode               | TCSPC
+  decode_mode::DecodeMode             | Decoded
+  output_mode::OutputMode             | Standard
+  header_en::Unsigned                 | 1 # Enable header in the output stream
+
   tcspc::Unsigned                     | 0
   second_photon_mode_enable::Unsigned | 0
   gs_rs_mode::Unsigned                | 1
   enable_gating::Unsigned             | 0
   test_col_enable::Unsigned           | 0 # Enable this column to do calibration
   exposure_time::Unsigned             | 500 #exposure in us
-  delay::Unsigned                     | 10 #multiples of 10ns
-  gate_width::Unsigned                | 2 #multiples of 10ns
-  #fifo_rd_test  | 0
+  delay::Unsigned                     | 10 #multiples of 10ns; Delay from STOP => 20 * 10 ns = 200 ns
+  gate_width::Unsigned                | 2 #multiples of 10ns;  Gate width in clock cycles => 2 * 10 ns = 20 ns
 
   stop_clk_divider::Unsigned          | 0
   last_row::Unsigned                  | 95

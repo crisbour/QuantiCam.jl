@@ -118,10 +118,19 @@ end
 # Qualify pixel reads to float + nan boxing based on codes
 # --------------------------------------------------
 
-function filter_code(tdc_pixels::Union{Array{UInt8}, Array{UInt16}})
+function filter_code(tdc_pixels::Union{Array{UInt8}, Array{UInt16}}; decode_mode::DecodeMode=Decoded)
   nan_boxed_pixels = similar(tdc_pixels, Float32)
   # 0x04 is the code for missing data
-  nan_boxed_pixels = map(x-> if(x==0x04) missing else Float32(x) end, tdc_pixels)
+  nan_boxed_pixels =
+    if decode_mode == Decoded
+        if tdc_pixels isa Array{UInt16}
+            map(x-> if(x==0xffc) missing else Float32(x) end, tdc_pixels)
+        else
+            map(x-> if(x==0xfc) missing else Float32(x) end, tdc_pixels)
+        end
+    else
+        map(x-> if(x==0x04) missing else Float32(x) end, tdc_pixels)
+    end
   nan_boxed_pixels
 end
 

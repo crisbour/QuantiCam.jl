@@ -74,7 +74,7 @@ function frame_check(raw_frame::PixelVector, rows::UInt, cols::UInt; el_size=1)
   # Statically allocate a matrix of size qc.rows, qc.cols
   frame_id = nothing
   # Parsing 2 sibling columns at a time, each with elements size = {1, 2} bytes based on byte_select
-  for (idx, row_pair) in enumerate(partition(raw_frame, cols*2))
+  for (idx, row_pair) in enumerate(partition(raw_frame, cols*2*el_size))
     row_header::RowPairHeader = @try parse_header(collect(row_pair))
     if frame_id === nothing
       frame_id = row_header.frame_id
@@ -83,7 +83,7 @@ function frame_check(raw_frame::PixelVector, rows::UInt, cols::UInt; el_size=1)
       @warn "Frame ID mismatch when parsing: Expecting($frame_id), Got($(row_header.frame_id)); Header: $row_header"
     end
     if idx != row_header.row_cnt + 1
-      @warn "Row ID mismatch when parsing: Expecting($idx), Got($(row_header.row_cnt)); Header: $row_header for parition(frame, $(cols*2*el_size))"
+      @warn "Row ID mismatch when parsing: Expecting($idx), Got($(row_header.row_cnt)); Header: $row_header for partition(frame, $(cols*2*el_size))"
     end
   end
 end

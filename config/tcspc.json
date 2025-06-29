@@ -6,20 +6,29 @@
   "row_enables": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
   "col_enables": "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
 
-  "tcspc": 1,
+  "pixel_mode": "TCSPC",
+  "decode_mode": "Decoded",
+  "output_mode": "Standard",
+  "header_en": 1,
+
+  "tcspc": 0,
   "second_photon_mode_enable": 0,
   "gs_rs_mode": 1,
   "enable_gating": 0,
-  "test_col_enable": 0,
-  "exposure_time": 1000,
-  "delay": 40,
+  "test_col_enable": 1,
+  "exposure_time": 500,
+  "delay": 40, 
   "gate_width": 2,
 
   "stop_clk_divider": 0,
   "last_row": 95,
-  "byte_select": 1,
+  "byte_select": 0,
   "byte_select_msb": 0,
-  "piso_readout_delay": 19,
+  "piso_readout_delay": 70,
   "stop_source_select": 0,
-  "sync_delay_clk_cycles": 0
+  "sync_delay_clk_cycles": 0,
+  
+  "error_backtrace": 0,
+  "error_test": 0,
+  "fifo_rdout_test": 0
 }
