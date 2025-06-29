@@ -19,14 +19,33 @@ function init_board!(qc::QCBoard)
   # Open library, connect to FPGA and load bitfile
   OpalKelly.init_board!(qc.fpga)
 
+  OpalKelly.set_timeout(qc.fpga, 1000) # Set timeout to 1 second
+
+  get_firmware_rev!(qc)
+
   # BUG: get firmware rev, no such addr impelemented in the bank and neither on the FPGA
   #get_firmware_rev!(qc)
+  config_sensor(qc)
 
   # Set voltage levels for sensor to work
   sensor_connect(qc)
+end
+
+
+# Configure Sensor
+function config_sensor(qc::QCBoard)
+  #Configures the sensor serial interface
+  tcspc = qc.config.tcspc
+  second_photon_mode_enable = qc.config.second_photon_mode_enable
+
+  exposure_time = 100 * qc.config.exposure_time ÷ 2 #exposure in 20ns steps
+
+  # Compose byte vector in UInt32 slices, assumming little endian
+  row_enables = reinterpret(UInt32, hex2bytes(qc.config.row_enables))
+  col_enables = reinterpret(UInt32, hex2bytes(qc.config.col_enables))
+
 
   @info "Initialize logic parameters necessary to interact with the sensor"
-
   set_wire_in_value(qc, STOP_CLK_DIVIDER,      qc.config.stop_clk_divider     )
   set_wire_in_value(qc, LAST_ROW,              qc.config.last_row             )
   set_wire_in_value(qc, BYTE_SELECT,           qc.config.byte_select          )
@@ -38,25 +57,11 @@ function init_board!(qc::QCBoard)
   set_wire_in_value(qc, ENABLE_GATING,         qc.config.enable_gating        )
   set_wire_in_value(qc, DELAY_FROM_STOP,       UInt32(qc.config.delay)        )
   set_wire_in_value(qc, GATE_WIDTH,            UInt32(qc.config.gate_width)   )
-
-  config_sensor(qc)
-end
-
-
-# Configure Sensor
-function config_sensor(qc::QCBoard)
-  #Configures the sensor serial interface
-  tcspc = qc.config.tcspc == 0 ? 1 : qc.config.tcspc == 1 ? 0 : qc.config.tcspc
-  second_photon_mode_enable = qc.config.second_photon_mode_enable == 0 ? 1 : qc.config.second_photon_mode_enable == 1 ? 0 : qc.config.second_photon_mode_enable
-
-  exposure_time = 100 * qc.config.exposure_time ÷ 2 #exposure in 20ns steps
-
-  # Compose byte vector in UInt32 slices, assumming little endian
-  row_enables = reinterpret(UInt32, hex2bytes(qc.config.row_enables))
-  col_enables = reinterpret(UInt32, hex2bytes(qc.config.col_enables))
+  set_wire_in_value(qc, ERROR_BACKTRACE,       UInt32(qc.config.error_backtrace))
+  set_wire_in_value(qc, ENABLE_ERROR_TEST,     UInt32(qc.config.error_test)   )
+  set_wire_in_value(qc, FIFO_RDOUT_TEST,       UInt32(qc.config.fifo_rdout_test))
 
   @info "Reset sensor and set parameters for the MODE of use"
-
   activate_trigger_in(qc, CHIP_RST)
   activate_trigger_in(qc, PIX_RST)
 
@@ -72,7 +77,10 @@ function config_sensor(qc::QCBoard)
   set_wire_in_value(qc, COL_ENABLES_2, col_enables[3])
   set_wire_in_value(qc, COL_ENABLES_3, col_enables[4])
 
-  set_wire_in_value(qc, TCSPC_MODE                 , UInt32(tcspc                    ))
+  set_wire_in_value(qc, TCSPC_MODE                 , UInt32(qc.config.tcspc                 ))
+  set_wire_in_value(qc, PIXEL_MODE                 , UInt32(qc.config.pixel_mode            ))
+  set_wire_in_value(qc, DECODE_MODE                , UInt32(qc.config.decode_mode           ))
+  set_wire_in_value(qc, OUTPUT_MODE                , UInt32(qc.config.output_mode           ))
   set_wire_in_value(qc, GLOBAL_SHUTTER_MODE        , UInt32(qc.config.gs_rs_mode            )) # 0 for rolling shutter, 1 for global shutter
   set_wire_in_value(qc, TEST_COL_ENABLE            , UInt32(qc.config.test_col_enable       ))
   set_wire_in_value(qc, TEST_COL_SECOND_PHOTON_MODE, UInt32(second_photon_mode_enable))
