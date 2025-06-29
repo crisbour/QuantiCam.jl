@@ -52,5 +52,6 @@ BYTE_SELECT_MSB             => BankInfo(0x14, 1 , 20),
 PISO_READOUT_DELAY          => BankInfo(0x14, 8 , 21),
 STOP_SOURCE_SELECT          => BankInfo(0x14, 1 , 29),
 SYNC_DELAY_CLK_CYCLES       => BankInfo(0x15, 32, 0 ),
+FW_VERSION                  => BankInfo(0x30, 24, 0 ), # FW Version (3 bytes, {major,minor,micro})
 ERROR_READY                 => BankInfo(0x31, 1 , 0 ),
 )

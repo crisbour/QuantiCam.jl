@@ -154,8 +154,13 @@ end
 
 function get_firmware_rev!(qc::QCBoard)
   # Get firmware revision
-  rev = get_wire_out_value(qc, FIRMWARE_REVISION);
-  qc.firmware_revision = rev;
+  rev = get_wire_out_value(qc, FW_VERSION);
+  # Parse UInt32 into Major.Minor.Patch format from bytes 2,1,0
+  major = (rev >> 16) & 0xFF
+  minor = (rev >> 8) & 0xFF
+  patch = rev & 0xFF
+  rev = string(major, ".", minor, ".", patch)
+  qc.firmware_revision = rev
   @info "Firmware revision: $rev"
 end
 
