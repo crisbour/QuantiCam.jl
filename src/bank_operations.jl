@@ -64,7 +64,7 @@ Arguments
 ...
 """
 # WARN: If fifo doesn't have any more elements, the read will be padded with 0 !!! => Fix firmware to avoid this BIG ISSUE
-function read_from_block_pipe_out(qc::QCBoard, pipename::BankEnum, blksize::Integer, frame_size::Integer; psize::Union{Nothing,UInt}=nothing, el_size=1)::Vector{UInt16}
+function read_from_block_pipe_out(qc::QCBoard, pipename::BankEnum, blksize::Integer, frame_size::Integer; psize::Union{Nothing,UInt}=nothing, el_size=1)::Union{Vector{UInt8}, Vector{UInt16}}
   @assert el_size == 1 || el_size == 2 "Element size not supported"
   data_8bits::Vector{UInt8} = fill(UInt8(0), frame_size*el_size)
   # Check that bank exists
@@ -198,7 +198,7 @@ function set_wire_in_value(qc::QCBoard, wirename::BankEnum, data::Unsigned)
   end
 end
 
-function get_wire_out_value(qc::QCBoard, wirename::BankEnum)
+function get_wire_out_value(qc::QCBoard, wirename::BankEnum)::UInt32
   # Parse register bank to get addr, size and starting bit from the bank
   # Get data from that wireout and pass back
   # Check bank index was set
@@ -213,7 +213,7 @@ function get_wire_out_value(qc::QCBoard, wirename::BankEnum)
     readvalue = OpalKelly.get_wire_out_value(qc.fpga, addr)
     mask = UInt32(2^size - 1)
     data_shift = readvalue >> bit
-    data = data_shift & mask
+    data = UInt32(data_shift & mask)
 
     # Write to log
     @debug "Wireout $wirename is value $data"

@@ -26,33 +26,9 @@ function capture_data(qc::QCBoard, number_of_frames::Int)::PixelVector
     data[start_idx:end_idx] = read_from_block_pipe_out(qc, FIFO_OUT, packet, packet, packet)
   end
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+  read_errors(qc)
+
   data
-end
-
-function focus_image(qc::QCBoard, number_of_frames::Int)
-  # Captures the requested amount of data (size) from the sensor.
-  activate_trigger_in(qc, PIX_RST)
-  activate_trigger_in(qc, FIFO_RST)
-
-  words = number_of_frames * qc.config.frame_size
-  packet = 512
-  data = fill(UInt16(0), qc.config.frame_size)
-
-  activate_trigger_in(qc, START_CAPTURE_TRIGGER)
-
-  for j = 1:number_of_frames
-    for i = 1:(qc.config.frame_size ÷ packet)
-      while get_wire_out_value(qc, EP_READY) == 0
-        # Wait until the transfer from fifo is ready
-      end
-      start_idx = (i-1)*packet+1
-      end_idx   = i*packet
-      data[start_idx:end_idx] = read_from_block_pipe_out(qc, FIFO_OUT, packet, packet, packet)
-    end
-    plotIntensityImage(qc, data, 1)
-  end
-  activate_trigger_in(qc, TRIGGER_END_CAPTURE)
-  data # Return last frame
 end
 
 function capture_frame(qc::QCBoard)::Matrix{UInt16}
