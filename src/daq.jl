@@ -13,6 +13,7 @@ function capture_data(qc::QCBoard, number_of_frames::Int)::PixelVector
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   for i = 1:(words ÷ packet)
@@ -31,14 +32,14 @@ function capture_data(qc::QCBoard, number_of_frames::Int)::PixelVector
   data
 end
 
-function capture_frame(qc::QCBoard)::Matrix{UInt16}
+function capture_frame(qc::QCBoard)::Union{Matrix{UInt8}, Matrix{UInt16}}
   # Captures the requested amount of data (size) from the sensor.
   words = qc.config.frame_size
   packet = 256
-  data_16bits = fill(UInt16(0), words)
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   # FIXME: The frame is not aligned for a reason or another need to fixup the firmware
@@ -50,11 +51,11 @@ function capture_frame(qc::QCBoard)::Matrix{UInt16}
   @debug "Reading block packet_size=$packet, frame_size=$(frame_size(qc))"
   frame_data = read_from_block_pipe_out(qc, FIFO_OUT, packet, frame_size(qc); el_size=element_size(qc))
 
-  data_16bits = frame_data
-
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+  read_errors(qc)
+
   # Organize rows read from middle outwards in a matrix format
-  unwrap(frame_cast(data_16bits, qc.config.rows, qc.config.cols))
+  unwrap(frame_cast(frame_data, qc.config.rows, qc.config.cols))
 end
 
 # TODO: After raw read, extract header and check it's alligned, all data is parts of a single frame and rows decoded end up in the correct position
@@ -69,7 +70,11 @@ function capture_frames(
   # Captures the requested amount of data (size) from the sensor.
   words = number_of_frames * qc.config.frame_size
   packet = 256
-  data_16bits::Vector{UInt16} = fill(UInt16(0), words)
+  if (element_size(qc) == 1)
+    data_8bits::Vector{UInt8} = fill(UInt16(0), words)
+  else
+    data_16bits::Vector{UInt16} = fill(UInt16(0), words)
+  end
 
   # Write config attributes of the camera to the HDF5 group
   if hdf_channel !== nothing
@@ -78,6 +83,7 @@ function capture_frames(
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   # FIXME: The frame is not aligned for a reason or another need to fixup the firmware
@@ -97,13 +103,22 @@ function capture_frames(
       put!(hdf_channel, frame_matrix)
     end
 
-    data_16bits[(i-1)*qc.config.frame_size+1:i*qc.config.frame_size] = frame_data
+    if (element_size(qc) == 1)
+      data_8bits[(i-1)*qc.config.frame_size+1:i*qc.config.frame_size] = frame_data
+    else
+      data_16bits[(i-1)*qc.config.frame_size+1:i*qc.config.frame_size] = frame_data
+    end
   end
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+  read_errors(qc)
 
   # Organize rows read from middle outwards in a matrix format and partition each frame
-  unwrap(frames_cast(data_16bits, qc.config.rows, qc.config.cols, UInt(number_of_frames)))
+    if (element_size(qc) == 1)
+      unwrap(frames_cast(data_8bits, qc.config.rows, qc.config.cols, UInt(number_of_frames)))
+    else
+      unwrap(frames_cast(data_16bits, qc.config.rows, qc.config.cols, UInt(number_of_frames)))
+    end
 end
 
 function capture_raw(qc::QCBoard)::Vector{UInt8}
@@ -114,6 +129,7 @@ function capture_raw(qc::QCBoard)::Vector{UInt8}
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   while get_wire_out_value(qc, EP_READY) == 0
@@ -123,6 +139,7 @@ function capture_raw(qc::QCBoard)::Vector{UInt8}
   data_8bits = read_from_block_pipe_out(qc, FIFO_OUT, packet, bytes)
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+  read_errors(qc)
 
   frame_check(data_8bits, qc.config.rows, qc.config.cols; el_size=element_size(qc))
   data_8bits
@@ -139,6 +156,7 @@ function stream_G2_Tint(qc,number_of_tint; plotter::Channel, hdf5_collector::Cha
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   # put!(plot_channel, G2Plot)
@@ -167,6 +185,8 @@ function stream_G2_Tint(qc,number_of_tint; plotter::Channel, hdf5_collector::Cha
   end
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+
+  read_errors(qc)
 end
 
 function stream_G2_components(qc::QCBoard, number_of_tint)
@@ -177,6 +197,7 @@ function stream_G2_components(qc::QCBoard, number_of_tint)
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   for _ = 1:number_of_tint
@@ -192,6 +213,9 @@ function stream_G2_components(qc::QCBoard, number_of_tint)
     data_32bits = map((h,l)-> h<16 | l, zip(data_16bits_2, data_16bits_1))
   end
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+
+  read_errors(qc)
+
   data_32bits
 end
 
@@ -201,6 +225,7 @@ function capture_intensity_frames_byte_mode(qc::QCBoard,number_of_frames)
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, ERROR_RST)
   packet = 1024
   frame_size_bytes = rows*128 #frame size plus header
   capture_frames = 10000
@@ -227,12 +252,16 @@ function capture_intensity_frames_byte_mode(qc::QCBoard,number_of_frames)
   end
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+
+  read_errors(qc)
+
   data_8bits
 end
 
 function capture_G2_Tint(qc::QCBoard, number_of_tint)
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, ERROR_RST)
 
   packet = 64
   tint_frame_size_bytes = 16*4 # 16 bins for each tint g2 curve. 4 bytes for each bin (32 bits)
@@ -260,6 +289,9 @@ function capture_G2_Tint(qc::QCBoard, number_of_tint)
   #fclose(fileID)
 
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+
+  read_errors(qc)
+
   data_32bits
 end
 
@@ -272,6 +304,7 @@ function capture_pixel_G2_components(qc, number_of_tint; hdf5_collector::Channel
 
   activate_trigger_in(qc, PIX_RST)
   activate_trigger_in(qc, FIFO_RST)
+  activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   for i = 1:tint_readout_iterations
@@ -282,6 +315,8 @@ function capture_pixel_G2_components(qc, number_of_tint; hdf5_collector::Channel
     put!(hdf5_collector, data_8bits)
   end
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
+
+  read_errors(qc)
 
   data_8bits
 end
