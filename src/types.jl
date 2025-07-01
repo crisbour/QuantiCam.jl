@@ -1,7 +1,7 @@
 using Serde
 using ResultTypes
 
-export QuantiCamError
+export QuantiCamError, cleanup!
 
 # --------------------------------------------------
 # Setup necessary and helper types
@@ -120,28 +120,28 @@ end
   pixel_mode::PixelMode               | TCSPC
   decode_mode::DecodeMode             | Decoded
   output_mode::OutputMode             | Standard
-  header_en::Unsigned                 | 1 # Enable header in the output stream
+  header_en::Bool                     | true # Enable header in the output stream
 
-  tcspc::Unsigned                     | 0
-  second_photon_mode_enable::Unsigned | 0
+  tcspc::Bool                         | false
+  second_photon_mode_enable::Unsigned | false
   gs_rs_mode::Unsigned                | 1
-  enable_gating::Unsigned             | 0
-  test_col_enable::Unsigned           | 0 # Enable this column to do calibration
+  enable_gating::Bool                 | false
+  test_col_enable::Bool               | false # Enable this column to do calibration
   exposure_time::Unsigned             | 500 #exposure in us
   delay::Unsigned                     | 10 #multiples of 10ns; Delay from STOP => 20 * 10 ns = 200 ns
   gate_width::Unsigned                | 2 #multiples of 10ns;  Gate width in clock cycles => 2 * 10 ns = 20 ns
 
   stop_clk_divider::Unsigned          | 0
   last_row::Unsigned                  | 95
-  byte_select::Unsigned               | 1
-  byte_select_msb::Unsigned           | 0
+  byte_select::Bool                   | false
+  byte_select_msb::Bool               | false
   piso_readout_delay::Unsigned        | 19
-  stop_source_select::Unsigned        | 0
+  stop_source_select::Bool            | false
   sync_delay_clk_cycles::Unsigned     | 0
 
-  error_backtrace::Unsigned           | 0 # 0: Forward trace, 1: Backwards trace
-  error_test::Unsigned                | 0 # 1 => Assign least priority line with ERROR_TEST signal
-  fifo_rdout_test::Unsigned           | 0 # Enable readout emulation, to test serialiser->usb readout pipeline
+  error_backtrace::Bool               | 0 # 0: Forward trace, 1: Backwards trace
+  error_test::Bool                    | 0 # 1 => Assign least priority line with ERROR_TEST signal
+  fifo_rdout_test::Bool               | 0 # Enable readout emulation, to test serialiser->usb readout pipeline
 end
 
 Base.@kwdef mutable struct QCBoard
@@ -199,7 +199,7 @@ function QCBoard(bitfile::String, bank::Dict{BankEnum, BankInfo}, config_path::U
   end
   # Setup with FPGA and correct register banks
   qc = QCBoard(fpga=fpga, bank=bank, config = qc_config)
-  finalizer(cleanup, qc)
+  finalizer(cleanup!, qc)
   qc
 end
 
@@ -207,7 +207,7 @@ QCBoard(bitfile::String, config_path::Union{Nothing,AbstractString}=nothing) = Q
 
 frame_size(qc) = 2 * (qc.config.last_row + 1) * qc.config.cols
 
-function cleanup(qc::QCBoard)
+function cleanup!(qc::QCBoard)
   sensor_disconnect(qc)
   finalize(qc.fpga)
 end

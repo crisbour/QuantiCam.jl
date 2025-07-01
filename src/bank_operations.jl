@@ -82,7 +82,7 @@ function read_from_block_pipe_out(qc::QCBoard, pipename::BankEnum, blksize::Inte
     data_8bits_high = UInt16.(data_8bits[2:2:end])
     data_8bits_low = UInt16.(data_8bits[1:2:end])
     # Note `map` needs an anonymous function to recognise the argument as tuple
-    map(((h, l),) -> h << 8 | l, zip(data_8bits_high, data_8bits_low))
+    map(((h, l),) -> (h << 8) | l, zip(data_8bits_high, data_8bits_low))
   else
     data_8bits
   end
@@ -107,7 +107,7 @@ function read_from_pipe_out(qc::QCBoard, pipename::BankEnum, blksize::UInt; el_s
     data_8bits_high = UInt16.(data_8bits[2:2:end])
     data_8bits_low = UInt16.(data_8bits[1:2:end])
     # Note `map` needs an anonymous function to recognise the argument as tuple
-    map(((h, l),) -> h << 8 | l, zip(data_8bits_high, data_8bits_low))
+    map(((h, l),) -> (h << 8) | l, zip(data_8bits_high, data_8bits_low))
   else
     data_8bits
   end

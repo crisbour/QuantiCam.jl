@@ -9,26 +9,26 @@
   "pixel_mode": "TCSPC",
   "decode_mode": "Decoded",
   "output_mode": "Standard",
-  "header_en": 1,
+  "header_en": true,
 
-  "tcspc": 0,
-  "second_photon_mode_enable": 0,
+  "tcspc": true,
+  "second_photon_mode_enable": false,
   "gs_rs_mode": 1,
-  "enable_gating": 0,
-  "test_col_enable": 1,
+  "enable_gating": false,
+  "test_col_enable": false,
   "exposure_time": 500,
-  "delay": 40, 
+  "delay": 2,
   "gate_width": 2,
 
   "stop_clk_divider": 0,
   "last_row": 95,
-  "byte_select": 0,
-  "byte_select_msb": 0,
-  "piso_readout_delay": 70,
-  "stop_source_select": 0,
+  "byte_select": false,
+  "byte_select_msb": false,
+  "piso_readout_delay": 200,
+  "stop_source_select": false,
   "sync_delay_clk_cycles": 0,
-  
-  "error_backtrace": 0,
-  "error_test": 0,
-  "fifo_rdout_test": 0
+
+  "error_backtrace": false,
+  "error_test": false,
+  "fifo_rdout_test": false
 }
