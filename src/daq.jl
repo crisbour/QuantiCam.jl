@@ -55,7 +55,7 @@ function capture_frame(qc::QCBoard)::Union{Matrix{UInt8}, Matrix{UInt16}}
   read_errors(qc)
 
   # Organize rows read from middle outwards in a matrix format
-  unwrap(frame_cast(frame_data, qc.config.rows, qc.config.cols))
+  unwrap(frame_cast(frame_data, qc.config.rows, qc.config.cols, header_en=qc.config.header_en))
 end
 
 # TODO: After raw read, extract header and check it's alligned, all data is parts of a single frame and rows decoded end up in the correct position
@@ -115,9 +115,9 @@ function capture_frames(
 
   # Organize rows read from middle outwards in a matrix format and partition each frame
     if (element_size(qc) == 1)
-      unwrap(frames_cast(data_8bits, qc.config.rows, qc.config.cols, UInt(number_of_frames)))
+      unwrap(frames_cast(data_8bits, qc.config.rows, qc.config.cols, UInt(number_of_frames), header_en=qc.config.header_en))
     else
-      unwrap(frames_cast(data_16bits, qc.config.rows, qc.config.cols, UInt(number_of_frames)))
+      unwrap(frames_cast(data_16bits, qc.config.rows, qc.config.cols, UInt(number_of_frames), header_en=qc.config.header_en))
     end
 end
 
@@ -141,7 +141,10 @@ function capture_raw(qc::QCBoard)::Vector{UInt8}
   activate_trigger_in(qc, TRIGGER_END_CAPTURE)
   read_errors(qc)
 
-  frame_check(data_8bits, qc.config.rows, qc.config.cols; el_size=element_size(qc))
+  if qc.config.header_en
+    # Check if the data is aligned and has the correct header
+    frame_check(data_8bits, qc.config.rows, qc.config.cols; el_size=element_size(qc))
+  end
   data_8bits
 end
 

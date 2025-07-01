@@ -32,23 +32,25 @@ element_size(qc::QCBoard)::UInt = if qc.config.byte_select==1 1 else 2 end
 # =================================================================================
 
 # TODO: Replace string error with EvalError or ParseError with the suitable hooks
-function frame_cast(raw_frame::PixelVector, rows::UInt, cols::UInt)::Result{Matrix{UInt16}, ErrorException}#::Matrix{UInt16}#
+function frame_cast(raw_frame::PixelVector, rows::UInt, cols::UInt; header_en::Bool=true)::Result{Matrix{UInt16}, ErrorException}
   # Statically allocate a matrix of size qc.rows, qc.cols
   frame = Matrix{UInt16}(undef, rows, cols)
   frame_id = nothing
   mid_idx = rows ÷ 2
   for (idx, row_pair) in enumerate(partition(raw_frame, cols*2))
-    row_header::RowPairHeader = @try parse_header(collect(row_pair))
-    if frame_id === nothing
-      frame_id = row_header.frame_id
-    end
-    if frame_id != row_header.frame_id
-      @error "Frame ID mismatch when parsing: Expecting($frame_id), Got($(row_header.frame_id)); Header: $row_header"
-      return ErrorResult(Matrix{UInt16}, "Frame ID mismatch when parsing: Expecting($frame_id), Got($(row_header.frame_id)); Header: $row_header")
-    end
-    if idx != row_header.row_cnt + 1
-      @error "Row ID mismatch when parsing: Expecting($idx), Got($(row_header.row_cnt+1)); Header: $row_header"
-      return ErrorResult(Matrix{UInt16}, "Row ID mismatch when parsing: Expecting($idx), Got($(row_header.row_cnt)); Header: $row_header")
+    if header_en
+        row_header::RowPairHeader = @try parse_header(collect(row_pair))
+        if frame_id === nothing
+          frame_id = row_header.frame_id
+        end
+        if frame_id != row_header.frame_id
+          @error "Frame ID mismatch when parsing: Expecting($frame_id), Got($(row_header.frame_id)); Header: $row_header"
+          return ErrorResult(Matrix{UInt16}, "Frame ID mismatch when parsing: Expecting($frame_id), Got($(row_header.frame_id)); Header: $row_header")
+        end
+        if idx != row_header.row_cnt + 1
+          @error "Row ID mismatch when parsing: Expecting($idx), Got($(row_header.row_cnt+1)); Header: $row_header"
+          return ErrorResult(Matrix{UInt16}, "Row ID mismatch when parsing: Expecting($idx), Got($(row_header.row_cnt)); Header: $row_header")
+        end
     end
     frame[mid_idx - idx + 1, :] = row_pair[1:cols]
     frame[mid_idx + idx, :]     = row_pair[cols+1:2*cols]
@@ -56,17 +58,32 @@ function frame_cast(raw_frame::PixelVector, rows::UInt, cols::UInt)::Result{Matr
   return frame
 end
 
-
-function frames_cast(raw_frames::PixelVector, rows::UInt, cols::UInt, number_of_frames::UInt)::Result{Vector{Matrix{UInt16}}, ErrorException}#::Vector{Matrix{UInt16}} #
+function frames_cast(raw_frames::PixelVector, rows::UInt, cols::UInt, number_of_frames::UInt; header_en::Bool=true)::Result{Vector{Matrix{UInt16}}, ErrorException}#::Vector{Matrix{UInt16}} #
   frames::Vector{Matrix{UInt16}} = []
+  frame_idx = nothing;
+  frame_cnt = 0
+  next_idx(idx) = if idx == 255 0 else idx + 1 end
+
   for raw_frame in partition(raw_frames, rows*cols)
     new_frame = @try frame_cast(collect(raw_frame), rows, cols)
+    # Check if frames are continuous
+    if header_en
+        frame_cnt += 1
+        new_frame_header = @try parse_header(raw_frame[1:4])
+        new_frame_idx = new_frame_header.frame_id
+        if frame_idx !== nothing && next_idx(frame_idx) != new_frame_idx
+            @warn "FRAME($frame_cnt): Frames skipped expected_idx=$(next_idx(frame_idx)) to new_idx=$(new_frame_idx) => Non continuous frames capture"
+        end
+        frame_idx = new_frame_idx
+    end
     push!(frames, new_frame)
   end
+
   if length(frames) != number_of_frames
     @error "Number of frames parsed: $(length(frames)) != Number of frames expected: $number_of_frames"
     return ErrorResult(Vector{Matrix{UInt16}}, "Number of frames parsed: $(length(frames)) != Number of frames expected: $number_of_frames")
   end
+
   return frames
 end
 
