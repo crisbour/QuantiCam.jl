@@ -62,7 +62,7 @@ function capture_frames(
 )::Vector{Matrix{UInt16}} where T
   # Captures the requested amount of data (size) from the sensor.
   words = number_of_frames * qc.config.frame_size
-  packet = 256
+  packet = 1024
   if (element_size(qc) == 1)
     data_8bits::Vector{UInt8} = fill(UInt16(0), words)
   else
@@ -79,11 +79,7 @@ function capture_frames(
   activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
-  # FIXME: The frame is not aligned for a reason or another need to fixup the firmware
   for i = 1:number_of_frames
-    while get_wire_out_value(qc, EP_READY) == 0
-      # Wait until the transfer from fifo is ready
-    end
     @debug "Reading block packet_size=$packet, frame_size=$(qc.config.frame_size)"
     frame_data = read_from_block_pipe_out(qc, FIFO_OUT, packet, qc.config.frame_size; el_size=element_size(qc))
 
