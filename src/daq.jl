@@ -17,10 +17,6 @@ function capture_data(qc::QCBoard, number_of_frames::Int)::PixelVector
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
   for i = 1:(words ÷ packet)
-    while get_wire_out_value(qc, EP_READY) == 0
-      # Wait until the transfer from fifo is ready
-      @info "Waiting for EP_READY"
-    end
     start_idx = (i-1)*packet+1
     end_idx   = i*packet
     @info "Reading packet $start_idx:$end_idx bytes"
@@ -42,12 +38,9 @@ function capture_frame(qc::QCBoard)::Union{Matrix{UInt8}, Matrix{UInt16}}
   activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
-  # FIXME: The frame is not aligned for a reason or another need to fixup the firmware
+  # FIXME: The first frame is 0, perhaps because of trigger_end?
   dummy_read = read_from_block_pipe_out(qc, FIFO_OUT, packet, frame_size(qc); el_size=element_size(qc))
 
-  while get_wire_out_value(qc, EP_READY) == 0
-    # Wait until the transfer from fifo is ready
-  end
   @debug "Reading block packet_size=$packet, frame_size=$(frame_size(qc))"
   frame_data = read_from_block_pipe_out(qc, FIFO_OUT, packet, frame_size(qc); el_size=element_size(qc))
 
@@ -132,9 +125,6 @@ function capture_raw(qc::QCBoard)::Vector{UInt8}
   activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
-  while get_wire_out_value(qc, EP_READY) == 0
-    # Wait until the transfer from fifo is ready
-  end
   @debug "Reading block packet_size=$packet, frame_size=$(qc.config.frame_size)"
   data_8bits = read_from_block_pipe_out(qc, FIFO_OUT, packet, bytes)
 
