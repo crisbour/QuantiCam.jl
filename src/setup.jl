@@ -2,7 +2,7 @@
 # Setup FPGA, Sensor and Configs
 # -------------------------------------
 
-export init_board!
+export init_board!, config_sensor, reload_config, get_firmware_rev!
 
 # Initialize FPGA with bitfile provided and settings in FPGA
 function init_board!(qc::QCBoard)
@@ -23,12 +23,10 @@ function init_board!(qc::QCBoard)
 
   get_firmware_rev!(qc)
 
-  # BUG: get firmware rev, no such addr impelemented in the bank and neither on the FPGA
-  #get_firmware_rev!(qc)
-  config_sensor(qc)
-
   # Set voltage levels for sensor to work
   sensor_connect(qc)
+
+  config_sensor(qc)
 end
 
 
@@ -96,6 +94,7 @@ function config_sensor(qc::QCBoard)
   set_wire_in_value(qc, TEST_COL_SECOND_PHOTON_MODE, UInt32(second_photon_mode_enable) )
   set_wire_in_value(qc, EXPOSURE_TIME              , exposure_time                     )
   #wireindata(obj.okComms,obj.bank,FRAME_NUMBER,frame_number)
+  sleep(0.5)
 
   activate_trigger_in(qc, CONFIG_SI_TRIGGER)
   sleep(1)
@@ -125,7 +124,7 @@ function sensor_connect(qc::QCBoard)
     set_voltage(qc, VBD,  15.6)
 
     @info "Waiting on voltages to stabilize"
-    sleep(3)
+    sleep(5)
 
     @info "Connected to Sensor"
   end
