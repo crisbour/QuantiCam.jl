@@ -14,8 +14,8 @@ export QuantiCamError, cleanup!
 end
 @enum DecodeMode begin
     Encoded = 0
-    Partial = 1
     Decoded = 2
+    Partial = 3
 end
 @enum OutputMode begin
     Standard    = 0

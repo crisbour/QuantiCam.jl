@@ -32,11 +32,8 @@ end
 
 # Configure Sensor
 function config_sensor(qc::QCBoard)
-  #Configures the sensor serial interface
-  tcspc = qc.config.tcspc
-  second_photon_mode_enable = qc.config.second_photon_mode_enable
-
-  exposure_time = 100 * qc.config.exposure_time ÷ 2 #exposure in 20ns steps
+  # Calculate exposure time in clock cycles
+  exposure_time = 100 * qc.config.exposure_time #exposure in 10ns steps
 
   # Compose byte vector in UInt32 slices, assumming little endian
   row_enables = reinterpret(UInt32, hex2bytes(qc.config.row_enables))
@@ -50,6 +47,10 @@ function config_sensor(qc::QCBoard)
     @warn "Pixel readout is set to PhotonCount, but sensor is configure as TCSPC => Configure sensor in PHOTON_CNT mode"
     qc.config.tcspc = false
   end
+
+  # WARN: Not sure why, but these flags are reversed for the sensor configuration
+  tcspc = qc.config.tcspc == 0 ? 1 : qc.config.tcspc == 1 ? 0 : qc.config.tcspc
+  second_photon_mode_enable = qc.config.second_photon_mode_enable == 0 ? 1 : qc.config.second_photon_mode_enable == 1 ? 0 : qc.config.second_photon_mode_enable
 
   @info "Initialize logic parameters necessary to interact with the sensor"
   set_wire_in_value(qc, STOP_CLK_DIVIDER,      qc.config.stop_clk_divider           )
@@ -85,7 +86,7 @@ function config_sensor(qc::QCBoard)
   set_wire_in_value(qc, COL_ENABLES_2, col_enables[3])
   set_wire_in_value(qc, COL_ENABLES_3, col_enables[4])
 
-  set_wire_in_value(qc, TCSPC_MODE                 , UInt32(qc.config.tcspc)           )
+  set_wire_in_value(qc, TCSPC_MODE                 , UInt32(tcspc)                     )
   set_wire_in_value(qc, PIXEL_MODE                 , UInt32(qc.config.pixel_mode)      )
   set_wire_in_value(qc, DECODE_MODE                , UInt32(qc.config.decode_mode)     )
   set_wire_in_value(qc, OUTPUT_MODE                , UInt32(qc.config.output_mode)     )
