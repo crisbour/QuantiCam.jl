@@ -66,16 +66,29 @@ encoding is {$F_3$,$\overline{F_2}$,$F_1$,$\overline{F_0}$}=`0011`
 > but it does match with the observed code for untriggered SPADS: 0x04 fine code
 
 The flags enconding from the ring-oscillator for the fine counting are then decoded in unsigned representation:
-| $\overline{F_0}$,$F_1$,$\overline{F_2}$,$F_3$ | Fine decoded | 2's complement |
-|:----:|:-----:|:----:|
-| 0111 | 111 | 001 |
-| 0011 | 110 | 010 |
-| 0001 | 101 | 011 |
-| 0000 | 100 | 100 |
-| 1000 | 011 | 101 |
-| 1100 | 010 | 110 |
-| 1110 | 001 | 111 |
-| 1111 | 000 | 000 |
+|$F_0,F_1,F_2,F_3$| $\overline{F_0}$,$F_1$,$\overline{F_2}$,$F_3$ | Fine decoded | 2's complement |
+|:----:|:----:|:-----:|:----:|
+| 1010 | 0000 | 100 | 100 |
+| 0010 | 1000 | 011 | 101 |
+| 0110 | 1100 | 010 | 110 |
+| 0100 | 1110 | 001 | 111 |
+| 0101 | 1111 | 000 | 000 |
+| 1101 | 0111 | 111 | 001 |
+| 1001 | 0011 | 110 | 010 |
+| 1011 | 0001 | 101 | 011 |
+
+Proposing new decoding to reflect the monotonicity and not take 2's complement
+implicit of the decoding to ensure correctness.
+|$F_0,F_1,F_2,F_3$| $\overline{F_0}$,$F_1$,$\overline{F_2}$,$F_3$ | Fine decoded | 2's complement |
+|:----:|:----:|:-----:|:----:|
+| 1010 | 0000 | 000 | *000 |
+| 0010 | 1000 | 001 | 111 |
+| 0110 | 1100 | 010 | 110 |
+| 0100 | 1110 | 011 | 101 |
+| 0101 | 1111 | 100 | 100 |
+| 1101 | 0111 | 101 | 011 |
+| 1001 | 0011 | 110 | 010 |
+| 1011 | 0001 | 111 | 001 |
 
 The coarse counter is incremented on the falling edge of $F_3$
 
