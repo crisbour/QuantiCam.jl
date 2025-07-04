@@ -65,7 +65,7 @@ function frames_cast(raw_frames::PixelVector, rows::UInt, cols::UInt, number_of_
   next_idx(idx) = if idx == 255 0 else idx + 1 end
 
   for raw_frame in partition(raw_frames, rows*cols)
-    new_frame = @try frame_cast(collect(raw_frame), rows, cols)
+    new_frame = @try frame_cast(collect(raw_frame), rows, cols, header_en=header_en)
     # Check if frames are continuous
     if header_en
         frame_cnt += 1

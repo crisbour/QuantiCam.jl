@@ -19,7 +19,7 @@ function init_board!(qc::QCBoard)
   # Open library, connect to FPGA and load bitfile
   OpalKelly.init_board!(qc.fpga)
 
-  OpalKelly.set_timeout(qc.fpga, 1000) # Set timeout to 1 second
+  OpalKelly.set_timeout(qc.fpga, 2000) # Set timeout to 2 second
 
   get_firmware_rev!(qc)
 
@@ -60,6 +60,7 @@ function config_sensor(qc::QCBoard)
   set_wire_in_value(qc, PISO_READOUT_DELAY,    qc.config.piso_readout_delay         )
   set_wire_in_value(qc, STOP_SOURCE_SELECT,    UInt32(qc.config.stop_source_select) )
   set_wire_in_value(qc, SYNC_DELAY_CLK_CYCLES, qc.config.sync_delay_clk_cycles      )
+  set_wire_in_value(qc, HEADER_EN,             UInt32(qc.config.header_en)          )
 
   set_wire_in_value(qc, ENABLE_GATING,         UInt32(qc.config.enable_gating)      )
   set_wire_in_value(qc, DELAY_FROM_STOP,       UInt32(qc.config.delay)              )
