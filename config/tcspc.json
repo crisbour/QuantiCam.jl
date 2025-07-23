@@ -17,10 +17,10 @@
   "enable_gating": false,
   "test_col_enable": false,
   "exposure_time": 500,
-  "delay": 2,
-  "gate_width": 2,
+  "delay": 18,
+  "gate_width": 18,
 
-  "stop_clk_divider": 0,
+  "stop_clk_divider": 7,
   "last_row": 95,
   "byte_select": false,
   "byte_select_msb": false,

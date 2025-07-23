@@ -38,9 +38,6 @@ function capture_frame(qc::QCBoard)::Union{Matrix{UInt8}, Matrix{UInt16}}
   activate_trigger_in(qc, ERROR_RST)
   activate_trigger_in(qc, START_CAPTURE_TRIGGER)
 
-  # FIXME: The first frame is 0, perhaps because of trigger_end?
-  dummy_read = read_from_block_pipe_out(qc, FIFO_OUT, packet, frame_size(qc); el_size=element_size(qc))
-
   @debug "Reading block packet_size=$packet, frame_size=$(frame_size(qc))"
   frame_data = read_from_block_pipe_out(qc, FIFO_OUT, packet, frame_size(qc); el_size=element_size(qc))
 
