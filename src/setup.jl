@@ -115,15 +115,15 @@ function sensor_connect(qc::QCBoard)
     activate_trigger_in(qc, SYS_RST)
 
     # set voltages
-    set_voltage(qc, VQ,   1.1 )
-    set_voltage(qc, VNBL, 1.1 )
-    set_voltage(qc, VEB,  1.2 )
+    set_voltage(qc, VQ,   1.1 ) # Vquence
+    set_voltage(qc, VNBL, 1.1 ) # VDDOSC
+    set_voltage(qc, VEB,  1.2 ) # VDD
     sleep(0.5)
     set_voltage(qc, VBD,  6   )
     sleep(0.5)
     set_voltage(qc, VBD,  9   )
     sleep(0.5)
-    set_voltage(qc, VBD,  15.6)
+    set_voltage(qc, VBD,  15.6) # VHV
 
     @info "Waiting on voltages to stabilize"
     sleep(5)
