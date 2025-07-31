@@ -1,7 +1,7 @@
 using Serde
 using ResultTypes
 
-export QuantiCamError, cleanup!
+export QuantiCamError, cleanup!, QCBoard
 
 # --------------------------------------------------
 # Setup necessary and helper types
