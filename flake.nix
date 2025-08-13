@@ -51,7 +51,10 @@
               xorg.libX11
               xorg.libXrender
               xorg.libXext
-              stdenv.cc.cc.lib qt5.qtbase qt5Full libGL
+              stdenv.cc.cc.lib
+              qt5.qtbase
+              qt5Full
+              libGL
               glxinfo
               glfw
               freetype
@@ -70,7 +73,7 @@
               #NIX_LD = builtins.readFile "${pkgs.stdenv.cc}/nix-support/dynamic-linker";
 
             shellHook = ''
-              export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.udev}/lib:${pkgs.stdenv.cc.cc.lib}/lib
+              export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.udev}/lib:${pkgs.libGL}/lib
               # IJulia doesn't need to be part of this package, as this is necessary just for the example notebooks
               julia --project -e 'using Pkg; Pkg.add("IJulia"); using IJulia; installkernel("julia-qc", "--project=$(pwd())");'
             '';
