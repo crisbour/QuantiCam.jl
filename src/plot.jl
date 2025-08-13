@@ -6,9 +6,9 @@ function plotIntensityImage(obj,data,number_of_frames)
 
   global last_row
   last_row_actual = last_row + 1
-  rows = last_row_actual*2
+  rows            = last_row_actual*2
 
-  data_reshaped = reshape(data_masked,(128,rows,number_of_frames))
+  data_reshaped   = reshape(data_masked,(128,rows,number_of_frames))
   data_sum_frames = sum(data_reshaped,3)
 
   data_image[1:128,1:last_row_actual]      = data_sum_frames(1:128,1:2:rows)

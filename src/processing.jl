@@ -118,32 +118,42 @@ end
 # Qualify pixel reads to float + nan boxing based on codes
 # --------------------------------------------------
 
-function filter_code(tdc_pixels::Union{Array{UInt8}, Array{UInt16}}; decode_mode::DecodeMode=Decoded)
-  nan_boxed_pixels = similar(tdc_pixels, Float32)
-  # 0x04 is the code for missing data
-  nan_boxed_pixels =
-    if decode_mode == Decoded
+function filter_code(
+    tdc_pixels::Union{Array{UInt8},Array{UInt16}};
+    decode_mode::DecodeMode = Decoded,
+)
+    nan_boxed_pixels = similar(tdc_pixels, Float32)
+    # 0x04 is the code for missing data
+    nan_boxed_pixels = if decode_mode == Decoded
         if tdc_pixels isa Array{UInt16}
-            map(x-> if(x==0xfff) missing else x end, tdc_pixels)
+            map(x -> if (x == 0xfff)
+                missing
+            else
+                x
+            end, tdc_pixels)
         else
-            map(x-> if(x==0xff) missing else x end, tdc_pixels)
+            map(x -> if (x == 0xff)
+                missing
+            else
+                x
+            end, tdc_pixels)
         end
     else
         tdc_pixels
         #map(x-> if(x==0x000) missing else Float32(x) end, tdc_pixels)
     end
-  nan_boxed_pixels
+    nan_boxed_pixels
 end
 
 # Assume each pixel might have a slightly different ring-oscillator,
 # hence, based on this inferred TDC clock, we convert the timestamp to calibrated qualified timestamps
 function calibrate_tdc(data::Array{Float32}, freq::Array{Float32})
-  data .* (1e9 ./ freq)  # in ns
+    data .* (1e9 ./ freq)  # in ns
 end
 
 # The timestamps will have a delay based on constant line delay + some offset inherent to each SPAD impulse response
 function calibrate_offset(data::Array{Float32}, offset::Array{Float32})
-  data .- offset
+    data .- offset
 end
 
 # ==================================================
@@ -152,28 +162,34 @@ end
 # WARN: This takes the 2s complement yet again for the 12-bit TCSPC value,
 # which shouldn't be necessary
 
-function twos_complement_branching(data::T, size=nothing)::T where T <: Union{UInt8, UInt16}
-  if size === nothing
-    size = sizeof(data) * 8
-  end
-  masked_data = data&(1<<size - 1)
-  if masked_data == 0
-    masked_data = 1<<size
-  end
-  (1<<size) - masked_data
+function twos_complement_branching(
+    data::T,
+    size = nothing,
+)::T where {T<:Union{UInt8,UInt16}}
+    if size === nothing
+        size = sizeof(data) * 8
+    end
+    masked_data = data & (1 << size - 1)
+    if masked_data == 0
+        masked_data = 1 << size
+    end
+    (1 << size) - masked_data
 end
 
-function twos_complement_instr(data::T, bits=nothing)::T where T <: Union{UInt8, UInt16}
-  shamt = 8 * sizeof(data) - bits
-  twos_complement_shifted = -reinterpret(signed(T), data << shamt)
-  twos_complement_shifted_unsigned = reinterpret(T, twos_complement_shifted)
-  twos_complement_shifted_unsigned >> shamt
+function twos_complement_instr(data::T, bits = nothing)::T where {T<:Union{UInt8,UInt16}}
+    shamt = 8 * sizeof(data) - bits
+    twos_complement_shifted = -reinterpret(signed(T), data << shamt)
+    twos_complement_shifted_unsigned = reinterpret(T, twos_complement_shifted)
+    twos_complement_shifted_unsigned >> shamt
 end
 
 function decode_frame_data(tdc_pixels::Array{UInt16})
-  #data_decoded = map(pixel -> twos_complement_instr(pixel, 12), tdc_pixels)
-  data_decoded_coarse = map(pixel -> twos_complement_instr(pixel>>3, 9), tdc_pixels)
-  data_decoded_fine = map(pixel -> ~(pixel & 0x7), tdc_pixels)
-  data_decoded = map((coarse, fine) -> coarse<<3 | fine, zip(data_decoded_coarse, data_decoded_fine))
-  data_decoded
+    #data_decoded = map(pixel -> twos_complement_instr(pixel, 12), tdc_pixels)
+    data_decoded_coarse = map(pixel -> twos_complement_instr(pixel >> 3, 9), tdc_pixels)
+    data_decoded_fine = map(pixel -> ~(pixel & 0x7), tdc_pixels)
+    data_decoded = map(
+        (coarse, fine) -> coarse << 3 | fine,
+        zip(data_decoded_coarse, data_decoded_fine),
+    )
+    data_decoded
 end
