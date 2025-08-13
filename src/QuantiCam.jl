@@ -8,7 +8,7 @@ using Logging
 using Random
 using Test
 
-export QCBoard, init_board!
+export QCBoard, init_board!, new_profile!, set_profile!
 
 include("types.jl")
 include("constants.jl")
