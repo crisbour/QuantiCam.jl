@@ -6,6 +6,7 @@ using OpalKelly
 using Printf
 using Logging
 using Random
+using Requires
 
 export QCBoard, init_board!, new_profile!, set_profile!
 
@@ -18,5 +19,9 @@ include("daq.jl")
 include("hdf5_collector.jl")
 include("processing.jl")
 #include("plot.jl")
+
+function __init__()
+    @require GLMakie="e9467ef8-e4e7-5192-8a1a-b1aee30e663a" include("live_view.jl")
+end
 
 end # module QuantiCam
