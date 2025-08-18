@@ -102,14 +102,14 @@ end
     ERROR_READY
 end
 
-mutable struct QCConfigProfle
+mutable struct QCConfigProfile
     name::String
-    config_path::String
+    path::String
 end
 
 @serde @default_value mutable struct QCConfig
     # Identifier
-    profile_name::String                | "default"
+    config_name::String                 | "default"
     config_path::String                 | ""
 
     # Constants
@@ -187,36 +187,10 @@ Base.@kwdef mutable struct QCBoard
     # Config parameters
     # ------------------------------------------------
     # Config filename if derived from JSON
-    config_profiles::Vector{QCConfigProfle} = QCConfigProfle[]
-    config::QCConfig
+    config_profiles::Vector{QCConfigProfile} = QCConfigProfile[]
+    config::QCConfig = deser_json(QCConfig, "{}")
 end
 
-function new_profile!(qc::QCBoard, profile::QCConfigProfle)
-    profile_idx = findfirst(p -> p.name == name, qc.config_profiles)
-    if profile_idx === nothing
-        @warn "Profile with name $(profile.name) already exists => Overwritting"
-        delete!(qc.config_profiles, profile_idx)
-    end
-    push!(qc.config_profiles, profile)
-end
-function new_profile!(qc::QCBoard, name::String, config_path::String)
-    new_profile!(qc, QCConfigProfle(name, config_path))
-end
-function set_profile!(qc::QCBoard, name::String)
-    # Find the profile with the given name
-    profile_idx = findfirst(p -> p.name == name, qc.config_profiles)
-    if profile_idx === nothing
-        @error "Profile with name $(name) not found"
-        return
-    end
-    profile = qc.config_profiles[profile_idx]
-    # Load the config from the file
-    qc.config = deser_json(QCConfig, read(profile.config_path))
-    qc.config.profile_name = name
-    qc.config.config_path = profile.config_path
-    reload_config(qc, qc.config.config_path)
-    config_sensor(qc)
-end
 
 
 function QCBoard(
@@ -237,7 +211,10 @@ function QCBoard(
     end
     # Setup with FPGA and correct register banks
     qc = QCBoard(fpga = fpga, bank = bank)
-    new_profile!(qc, "default", config_path)
+    if config_path !== nothing
+        # Set the profile name to the config path
+        new_profile!(qc, config_path)
+    end
     finalizer(cleanup!, qc)
     qc
 end

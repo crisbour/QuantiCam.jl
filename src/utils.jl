@@ -1,7 +1,7 @@
 using Base.Iterators
 using ResultTypes
 
-export element_size
+export element_size, load_qc
 
 function check_fpga_exists(fpga::FPGA)::Bool
     # Check FGPA exists
@@ -214,6 +214,54 @@ function read_errors(qc::QCBoard)
             @warn "Error found in the FPGA: $(error_bundle)"
         end
     end
+end
+
+# =================================================================================
+# Quickly loading firmware
+# =================================================================================
+
+function find_qc_version(;fw_dir=nothing, fw_version="latest")
+    # Find FW bitfile to write to the FPGA
+    if fw_dir === nothing
+        if !haskey(ENV, "DATASTORE_3D_PATH")
+            @error "DATASTORE_3D_PATH not set"
+            return nothing
+        end
+        fw_dir = joinpath(ENV["DATASTORE_3D_PATH"], "ms_lidar/fw")
+    end
+
+    fw_files = filter(f -> occursin(r"photon_cnt_tcspc_xem7310-a200_v\d+\.\d+\.\d+\.bit", f), readdir(fw_dir))
+
+    if fw_version == "latest"
+        fw_filename = maximum(fw_files) # Assume lexicographical order
+    else
+        if !occursin(r"v\d+\.\d+\.\d+", fw_version)
+            @error "Invalid firmware version format"
+            return nothing
+        end
+
+        fw_filename = "photon_cnt_tcspc_xem7310-a200_$(fw_version).bit"
+        if !(fw_filename in fw_files)
+            @error "Firmware version $(fw_version) not found in directory $(fw_dir)"
+            return nothing
+        end
+    end
+
+    fw_path = joinpath(fw_dir, fw_filename)
+    fw_path
+end
+
+function load_qc(;fw_path=nothing, fw_dir=nothing, fw_version="latest", config_path=nothing)::QCBoard
+    if fw_path === nothing
+        fw_path = find_qc_version(fw_dir=fw_dir, fw_version=fw_version)
+    end
+
+    if config_path === nothing
+        config_path = "./config/tcspc.json" # Default configuration path
+    end
+    qc = QCBoard(fw_path, config_path)
+    init_board!(qc)
+    qc
 end
 
 
