@@ -181,6 +181,12 @@ function reload_config(qc::QCBoard, config_profile::QCConfigProfile)
 end
 
 function new_profile!(qc::QCBoard, profile::QCConfigProfile)
+    # Check config_path is a valid file
+    if !isfile(profile.path)
+        @error "Config path $(profile.path) is not a valid file"
+        return
+    end
+
     profile_idx = findfirst(p -> p.name == name, qc.config_profiles)
     if profile_idx !== nothing
         @warn "Profile with name \"$(profile.name)\" at idx=$profile_idx already exists => Overwritting"
@@ -188,6 +194,7 @@ function new_profile!(qc::QCBoard, profile::QCConfigProfile)
     else
         push!(qc.config_profiles, profile)
     end
+
     if profile.name == "default"
         reload_config(qc, profile)
     end

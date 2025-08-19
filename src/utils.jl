@@ -264,6 +264,10 @@ function load_qc(;fw_path=nothing, fw_dir=nothing, fw_version="latest", config_p
     qc
 end
 
+function has_profile(qc::QCBoard, name::String)::Bool
+    # Check if the profile with the given name exists
+    return any(p -> p.name == name, qc.config_profiles)
+end
 
 # =================================================================================
 # Misc, functions ported from MATLAB that shouldn't be needed
