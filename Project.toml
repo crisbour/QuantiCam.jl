@@ -1,7 +1,7 @@
 name = "QuantiCam"
 uuid = "42916ebc-e1b0-4bae-bca4-6df6ee911bda"
 authors = ["Cristi Bourceanu <bourceanu.cristi@gmail.com>"]
-version = "0.7.0"
+version = "0.7.1"
 
 [deps]
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
@@ -36,6 +36,7 @@ Serde = "3.6.0"
 StatsBase = "0.34.4"
 
 [extras]
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]

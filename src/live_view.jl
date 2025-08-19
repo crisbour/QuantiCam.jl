@@ -1,4 +1,4 @@
-using GLMakie
+export live_view
 
 function live_view(qc::QCBoard)
     # Activate GLMakie
@@ -15,7 +15,7 @@ function live_view(qc::QCBoard)
     display(fig)
 
     for _ in 1:10000
-        sleep(1)
+        sleep(0.1)
         one_frame = capture_frame(qc)
         # Update the heatmap data
         hm[1] = transpose(one_frame)# In Makie v0.16+, heatmap data is accessed like this
