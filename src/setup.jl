@@ -56,7 +56,7 @@ function config_sensor(qc::QCBoard)
         qc.config.second_photon_mode_enable == 0 ? 1 :
         qc.config.second_photon_mode_enable == 1 ? 0 : qc.config.second_photon_mode_enable
 
-    @info "Initialize logic parameters necessary to interact with the sensor"
+    @debug "Initialize logic parameters necessary to interact with the sensor"
     set_wire_in_value(qc, STOP_CLK_DIVIDER, qc.config.stop_clk_divider)
     set_wire_in_value(qc, LAST_ROW, qc.config.last_row)
     set_wire_in_value(qc, BYTE_SELECT, UInt32(qc.config.byte_select))
@@ -75,7 +75,7 @@ function config_sensor(qc::QCBoard)
     set_wire_in_value(qc, ENABLE_ERROR_TEST, UInt32(qc.config.error_test))
     set_wire_in_value(qc, FIFO_RDOUT_TEST, UInt32(qc.config.fifo_rdout_test))
 
-    @info "Reset sensor and set parameters for the MODE of use"
+    @debug "Reset sensor and set parameters for the MODE of use"
     activate_trigger_in(qc, CHIP_RST)
     activate_trigger_in(qc, PIX_RST)
 
@@ -100,10 +100,8 @@ function config_sensor(qc::QCBoard)
     set_wire_in_value(qc, TEST_COL_SECOND_PHOTON_MODE, UInt32(second_photon_mode_enable))
     set_wire_in_value(qc, EXPOSURE_TIME, exposure_time)
     #wireindata(obj.okComms,obj.bank,FRAME_NUMBER,frame_number)
-    sleep(0.5)
 
     activate_trigger_in(qc, CONFIG_SI_TRIGGER)
-    sleep(1)
     @info "Sensor configured"
 end
 
@@ -122,15 +120,15 @@ function sensor_connect(qc::QCBoard)
         set_voltage(qc, VQ, 1.1) # Vquence
         set_voltage(qc, VNBL, 1.1) # VDDOSC
         set_voltage(qc, VEB, 1.2) # VDD
-        sleep(0.5)
+        sleep(0.1)
         set_voltage(qc, VBD, 6)
-        sleep(0.5)
+        sleep(0.1)
         set_voltage(qc, VBD, 9)
-        sleep(0.5)
+        sleep(0.1)
         set_voltage(qc, VBD, 15.6) # VHV
 
         @info "Waiting on voltages to stabilize"
-        sleep(5)
+        sleep(1)
 
         @info "Connected to Sensor"
     end
@@ -152,13 +150,13 @@ function sensor_disconnect(qc::QCBoard)
     set_voltage(qc, VQ, 0)
     set_voltage(qc, VNBL, 0)
     set_voltage(qc, VBD, 15.6)
-    sleep(0.5)
+    sleep(0.1)
     set_voltage(qc, VBD, 9)
-    sleep(0.5)
+    sleep(0.1)
     set_voltage(qc, VBD, 6)
-    sleep(0.5)
+    sleep(0.1)
     set_voltage(qc, VBD, 3)
-    sleep(0.5)
+    sleep(0.1)
     set_voltage(qc, VBD, 0)
 
 
@@ -187,7 +185,7 @@ function new_profile!(qc::QCBoard, profile::QCConfigProfile)
         return
     end
 
-    profile_idx = findfirst(p -> p.name == name, qc.config_profiles)
+    profile_idx = findfirst(p -> p.name == profile.name, qc.config_profiles)
     if profile_idx !== nothing
         @warn "Profile with name \"$(profile.name)\" at idx=$profile_idx already exists => Overwritting"
         qc.config_profiles[profile_idx] = profile

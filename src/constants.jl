@@ -60,4 +60,5 @@ const QUANTICAM_BANK::Dict{} = Dict{BankEnum,BankInfo}(
     SYNC_DELAY_CLK_CYCLES       => BankInfo(0x15, 32, 0 ),
     FW_VERSION                  => BankInfo(0x30, 24, 0 ),  # FW Version (3 bytes, {major,minor,micro})
     ERROR_READY                 => BankInfo(0x31, 1,  0 ),
+    FPGA_LEDS                   => BankInfo(0x16, 8,  0 ),
 )

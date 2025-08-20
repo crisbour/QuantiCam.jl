@@ -100,6 +100,7 @@ end
     SYNC_DELAY_CLK_CYCLES
     FW_VERSION
     ERROR_READY
+    FPGA_LEDS
 end
 
 mutable struct QCConfigProfile

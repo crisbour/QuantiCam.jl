@@ -1,3 +1,17 @@
+function collect_frames(v::Vector{Matrix{T}}) where T
+    n_rows = size(v[1], 1)
+    n_cols = size(v[1], 2)
+    n_matrices = length(v)
+
+    result = Matrix{Vector{T}}(undef, n_rows, n_cols)
+
+    for i in 1:n_rows, j in 1:n_cols
+        result[i, j] = [v[k][i, j] for k in 1:n_matrices]
+    end
+
+    return result
+end
+
 #=
 function check_g2_pixel_component_stream()
   pixels = 2*(last_row+1)*64
@@ -126,7 +140,7 @@ function filter_code(
     # 0x04 is the code for missing data
     nan_boxed_pixels = if decode_mode == Decoded
         if tdc_pixels isa Array{UInt16}
-            map(x -> if (x == 0xfff)
+            map(x -> if (x == 0x1ff)
                 missing
             else
                 x

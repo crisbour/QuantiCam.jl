@@ -301,3 +301,24 @@ function check_frame_stream(qc::QCBoard, data::Vector{Matrix{T}})::Vector{Matrix
   frame = uint8(frame_data((i-1)*pixels+1:i*pixels))
 end
 =#
+
+# ================================================================================
+# Test LEDs
+# ================================================================================
+
+function set_leds(qc::QCBoard, ledArray::BitVector)
+  ledOut::UInt32=0
+  for i=1:8
+    if ledArray[i]
+      ledOut |= 1 << (i-1)
+    end
+  end
+  set_wire_in_value(qc, FPGA_LEDS, ledOut)
+  update_wire_ins(qc)
+end
+
+function test_random_leds(qc::QCBoard)
+  ledArray = bitrand(8)
+  set_leds(qc, ledArray)
+end
+
