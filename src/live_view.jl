@@ -27,51 +27,55 @@ function live_intensity(qc::QCBoard; frames=50)
     GLMakie.activate!()
 
     # FIXME: Remove QuantiCam module namespace once include works based on Requires
-    if !QuantiCam.has_profile(qc, "intensity")
-        intensity_profile_config_path = joinpath(@__DIR__, "../config/photon_cnt.json")
-        @warn "No 'intensity' profile found, using default config from package: $intensity_profile_config_path"
-        new_profile!(qc, "intensity", intensity_profile_config_path)
+    if !QuantiCam.has_config(qc, "intensity")
+        intensity_config_config_path = joinpath(@__DIR__, "../config/photon_cnt.json")
+        @warn "No 'intensity' config found, using default config from package: $intensity_config_config_path"
+        new_config!(qc, "intensity", intensity_config_config_path)
     end
-    set_profile!(qc, "intensity")
+    set_config!(qc, "intensity")
 
     # Create a figure and axis
     fig = Figure()
 
     menu = Menu(fig, options = ["viridis", "lajolla", "heat", "blues"], default = "viridis")
     exposure_slg = SliderGrid(fig,
-        (label="Exposure Time", range = 1:500, startvalue=50))
-    fig[2,:] = vgrid!(
+        (label="Exposure Time", range = Unsigned.(1:500), startvalue=Unsigned(50)),
+        (label="Frames", range = Unsigned.(1:200), startvalue=Unsigned(50)))
+    fig[1,1] = vgrid!(hgrid!(
         Label(fig, "Colormap", width = nothing),
-        menu,
+        menu),
         exposure_slg
         )
 
-    ax = Axis(fig[3, 1]; aspect=1)
+    ax = Axis(fig[2, 1]; aspect=1)
     # Create initial data matrix (192x128)
-    data = rand(UInt16, 128, 192)
+    data = rand(UInt32, 128, 192)
 
     # Plot initial heatmap and get the plot object for updating
     hm = heatmap!(ax, data)
 
-    cb = Colorbar(fig[3,2], hm, colorrange=0:(frames*512) ,label="Photons count")
+    cb = Colorbar(fig[2,2], hm, label="Photons count")
 
     on(menu.selection) do s
         hm.colormap = s
     end
     notify(menu.selection)
 
-    on(exposure_slg.sliders[1].value) do exposure_value
-        qc.config.exposure_time = exposure_value
-        config_sensor(qc)
+    on(exposure_slg.sliders[1].value) do exposure_time
+        change_config!(qc, "intensity", :exposure_time, exposure_time)
+        set_config!(qc, "intensity")
+    end
+    on(exposure_slg.sliders[2].value) do slider_frames
+        frames = slider_frames
     end
 
-    rowsize!(fig.layout, 3, Relative(0.8))
+    rowsize!(fig.layout, 2, Relative(0.8))
     display(fig)
 
     #scene = ax.scene
 
     # Listen for mouse button events
-    on(events(fig).mousebutton, priority=2) do event
+    on(events(fig).mousebutton) do event
         if event.button == Mouse.left && event.action == Mouse.press
             # pick returns the plot and the index of the selected element
             plt, idx = pick(fig)
@@ -88,7 +92,7 @@ function live_intensity(qc::QCBoard; frames=50)
 
     # Live loop while figure is open
     while isopen(fig.scene)
-        intensity_frames = capture_frames(qc, 50)
+        intensity_frames = capture_frames(qc, frames)
         intensity_frame = reduce(.+, intensity_frames)
         # Update the heatmap data
         hm[1] = transpose(intensity_frame)# In Makie v0.16+, heatmap data is accessed like this
@@ -99,67 +103,135 @@ function live_intensity(qc::QCBoard; frames=50)
     end
 end
 
-function live_depth(qc::QCBoard; frames=1000, frames_step=500)
-    if !QuantiCam.has_profile(qc, "tcspc")
-        tcspc_profile_config_path = joinpath(@__DIR__, "../config/photon_cnt.json")
-        @warn "No 'intensity' profile found, using default config from package: $tcspc_profile_config_path"
-        new_profile!(qc, "tcspc", tcspc_profile_config_path)
+# Live depth view
+
+function live_depth(qc::QCBoard; frames=500, frames_step=500)
+    if !QuantiCam.has_config(qc, "tcspc")
+        tcspc_config_config_path = joinpath(@__DIR__, "../config/tcspc.json")
+        @warn "No 'tcspc' config found, using default config from package: $tcspc_config_config_path"
+        new_config!(qc, "tcspc", tcspc_config_config_path)
     end
-    if !QuantiCam.has_profile(qc, "intensity")
-        intensity_profile_config_path = joinpath(@__DIR__, "../config/photon_cnt.json")
-        @warn "No 'intensity' profile found, using default config from package: $intensity_profile_config_path"
-        new_profile!(qc, "intensity", intensity_profile_config_path)
+    if !QuantiCam.has_config(qc, "intensity")
+        intensity_config_config_path = joinpath(@__DIR__, "../config/photon_cnt.json")
+        @warn "No 'intensity' config found, using default config from package: $intensity_config_config_path"
+        new_config!(qc, "intensity", intensity_config_config_path)
     end
 
     cbuf = CircularBuffer{Matrix{UInt16}}(2048)
 
-    fig = Figure()
+    fig = Figure(size=(1200, 600))
 
-    menu = Menu(fig, options = ["viridis", "heat", "blues"], default = "viridis")
-    fig[1,1] = vgrid!(
+    g_intensity = fig[1,1] = GridLayout()
+    g_hist = fig[1,2] = GridLayout()
+    g_depth = fig[1,3] = GridLayout()
+
+    # Photon count settings and heatmap
+    # ---------------------------------
+    menu_intensity = Menu(fig, options = ["viridis", "lajolla", "heat", "blues"], default = "viridis")
+    intensity_slg = SliderGrid(fig,
+        (label="Exposure Time", range = Unsigned.(1:500), startvalue=Unsigned(50)))
+    g_intensity[1,1] = vgrid!(hgrid!(
         Label(fig, "Colormap", width = nothing),
-        menu)
-
-    ax = Axis(fig[2, 1])
+        menu_intensity),
+        intensity_slg
+        )
+    ax = Axis(g_intensity[2, 1])
     # Create initial data matrix (192x128)
     data = rand(UInt16, 128, 192)
 
     # Plot initial heatmap and get the plot object for updating
-    hm = heatmap!(ax, data)
+    hm_intensity = heatmap!(ax, data)
 
-    cbar = Colorbar(fig[2,2], hm, label="Photons count")
+    cbar = Colorbar(g_intensity[2,2], hm_intensity, label="Photons count")
 
-    on(menu.selection) do s
-        hm.colormap = s
+    on(menu_intensity.selection) do s
+        hm_intensity.colormap = s
     end
-    notify(menu.selection)
+    notify(menu_intensity.selection)
+
+    on(intensity_slg.sliders[1].value) do exposure_time
+        change_config!(qc, "intensity", :exposure_time, exposure_time)
+    end
+
+    # Selected pixel histogram
+    # ---------------------------------
+    menu_hist = Menu(fig, options = ["viridis", "lajolla", "heat", "blues"], default = "viridis")
+    hist_slg = SliderGrid(fig,
+        (label="Exposure Time", range = Unsigned.(1:500), startvalue=Unsigned(50)),
+        (label="Histogram bins", range = Unsigned.(1:500), startvalue=Unsigned(200))
+    )
+    g_hist[1,1] = vgrid!(hgrid!(
+        Label(fig, "Colormap", width = nothing),
+        menu_hist),
+        hist_slg
+        )
+    # Plot initial heatmap and get the plot object for updating
+    ax = Axis(g_hist[2, 1])
+    data = rand(UInt16, 2000)
+    pixel_hist = hist!(ax, data, bins=200)
+
+    on(menu_hist.selection) do s
+        # nothing to do ?
+    end
+    notify(menu_hist.selection)
+
+    on(hist_slg.sliders[1].value) do exposure_time
+        change_config!(qc, "tcspc", :exposure_time, exposure_time)
+    end
+    on(hist_slg.sliders[2].value) do bins
+        pixel_hist.bins = bins
+    end
+
+    # Computed depth heatmap
+    # ---------------------------------
+    menu_depth = Menu(fig, options = ["viridis", "lajolla", "heat", "blues"], default = "viridis")
+    menu_depth_alg = Menu(fig, options = ["Peak", "Matched filter", "Sketch", "Histogram-less"], default = "Peak")
+    # TODO: Add different methods for extracting depth from histogram
+    depth_slg = SliderGrid(fig,
+        (label="Bins", range = Unsigned.(1:500), startvalue=Unsigned(200)),
+        (label="", range = Unsigned.(1:500), startvalue=Unsigned(200))
+    )
+    g_depth[1,1] = vgrid!(
+        hgrid!(Label(fig, "Colormap", width = nothing), menu_depth),
+        hgrid!(Label(fig, "Algorithm", width = nothing), menu_depth_alg),
+        )
+    ax = Axis(g_depth[2, 1])
+    # Create initial data matrix (192x128)
+    data = rand(UInt16, 128, 192)
+
+    # Plot initial heatmap and get the plot object for updating
+    hm_depth = heatmap!(ax, data)
+
+    on(menu_depth.selection) do s
+        hm_depth.colormap = s
+    end
+    notify(menu_depth.selection)
 
     display(fig)
 
-    append!(cbuf, capture_frames(qc, frames))
+    # Run a thread process that every 100ms set_config to `intensity` and captures 50 frames
+    # and updates the heatmap with the average of those frames]
 
     # Live loop while figure is open
     while isopen(fig.scene)
-
-        set_profile!(qc, "tcspc")
-        #new_frames = capture_frames(qc, frames_step)
-        #append!(cbuf, new_frames)
-
-        #filtered_frames = map(frame -> filter_code(frame), cbuf[1:frames])
-        #tcspc_stream_missing = collect_frames(filtered_frames)
-        #tcspc_stream = map(pixel -> collect(skipmissing(pixel)), tcspc_stream_missing)
-        #tcspc_events = map(pixel -> length(collect((skipmissing(pixel)))), tcspc_stream)
-
-        set_profile!(qc, "intensity")
-        intensity_frame = capture_frame(qc)
-
-
+        set_config!(qc, "intensity")
+        intensity_frames = capture_frames(qc, 50)
+        intensity_frame = reduce(.+, intensity_frames)
         # Update the heatmap data
-        hm[1] = transpose(intensity_frame) # In Makie v0.16+, heatmap data is accessed like this
+        hm_intensity[1] = transpose(intensity_frame) # In Makie v0.16+, heatmap data is accessed like this
+
+        set_config!(qc, "tcspc")
+        new_frames = capture_frames(qc, 100)
+
+        filtered_frames = map(frame -> filter_code(frame), new_frames)
+        tcspc_stream_missing = collect_frames(filtered_frames)
+        tcspc_stream = map(pixel -> collect(skipmissing(pixel)), tcspc_stream_missing)
+        tcspc_events = map(pixel -> length(collect((skipmissing(pixel)))), tcspc_stream)
+        # Update the heatmap data
+        pixel_hist[1] = tcspc_stream[40,50]
 
         # Force redraw/update
         yield()
-        #heatmap(one_frame)
     end
 
 
