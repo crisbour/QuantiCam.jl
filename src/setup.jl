@@ -32,7 +32,12 @@ end
 
 # Configure Sensor
 function config_sensor(qc::QCBoard)
-    @info "Configuring Sensor with config profile \"$(qc.config.config_name)\" at path $(qc.config.config_path)"
+    if qc.sensor_status != Connected
+        @error "Sensor not connected, cannot configure"
+        return
+    end
+
+    @info "Configuring Sensor with config \"$(qc.config.config_name)\" from path $(qc.config.config_path)"
 
     # Calculate exposure time in clock cycles
     exposure_time = 100 * qc.config.exposure_time #exposure in 10ns steps
@@ -168,53 +173,40 @@ end
 # -------------------------------------------------------------------
 # Utils
 # -------------------------------------------------------------------
-function reload_config(qc::QCBoard, config_profile::QCConfigProfile)
-    qc.config = deser_json(QCConfig, read(config_profile.path))
-    qc.config.config_name = config_profile.name
-    qc.config.config_path = config_profile.path
-    if qc.sensor_status == Connected
-        @debug "Reconfiguring sensor with profile $(profile.name)"
-        config_sensor(qc)
-    end
-end
-
-function new_profile!(qc::QCBoard, profile::QCConfigProfile)
+function new_config!(qc::QCBoard, name::String, config_path::String)
     # Check config_path is a valid file
-    if !isfile(profile.path)
-        @error "Config path $(profile.path) is not a valid file"
+    if !isfile(config_path)
+        @error "Config path $(config_path) is not a valid file"
         return
     end
 
-    profile_idx = findfirst(p -> p.name == profile.name, qc.config_profiles)
-    if profile_idx !== nothing
-        @warn "Profile with name \"$(profile.name)\" at idx=$profile_idx already exists => Overwritting"
-        qc.config_profiles[profile_idx] = profile
-    else
-        push!(qc.config_profiles, profile)
-    end
-
-    if profile.name == "default"
-        reload_config(qc, profile)
-    end
-end
-function new_profile!(qc::QCBoard, name::String, config_path::String)
-    new_profile!(qc, QCConfigProfile(name, config_path))
-end
-function new_profile!(qc::QCBoard, config_path::String)
-    new_profile!(qc, QCConfigProfile("default", config_path))
-end
-function set_profile!(qc::QCBoard, name::String)
-    # Find the profile with the given name
-    profile_idx = findfirst(p -> p.name == name, qc.config_profiles)
-    if profile_idx === nothing
-        @error "Profile with name $(name) not found"
-        return
-    end
-    profile = qc.config_profiles[profile_idx]
     # Load the config from the file
-    reload_config(qc, profile)
-end
+    config = deser_json(QCConfig, read(config_path))
+    config.config_name = name
+    config.config_path = config_path
 
+    config_idx = findfirst(p -> p.config_name == name, qc.configs)
+    if config_idx !== nothing
+        @warn "Config with name \"$(name)\" at idx=$config_idx already exists => Overwritting"
+        qc.configs[config_idx] = config
+    else
+        push!(qc.configs, config)
+    end
+end
+function new_config!(qc::QCBoard, config_path::String)
+    new_config!(qc, "default", config_path)
+end
+function set_config!(qc::QCBoard, name::String)
+    # Find the config with the given name
+    config_idx = findfirst(p -> p.config_name == name, qc.configs)
+    if config_idx === nothing
+        @error "Config with name $(name) not found"
+        return
+    end
+    qc.config = qc.configs[config_idx]
+    config_sensor(qc)
+    @debug "Reconfiguring sensor with config $(qc.config.config_name)"
+end
 
 function get_firmware_rev!(qc::QCBoard)
     # Get firmware revision

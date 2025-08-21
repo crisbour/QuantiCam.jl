@@ -264,9 +264,24 @@ function load_qc(;fw_path=nothing, fw_dir=nothing, fw_version="latest", config_p
     qc
 end
 
-function has_profile(qc::QCBoard, name::String)::Bool
+function has_config(qc::QCBoard, name::String)::Bool
     # Check if the profile with the given name exists
-    return any(p -> p.name == name, qc.config_profiles)
+    return any(p -> p.config_name == name, qc.configs)
+end
+function change_config!(qc::QCBoard, name::String, field::Symbol, value)
+    # Find the config with the given name
+    config_idx = findfirst(p -> p.config_name == name, qc.configs)
+    if config_idx === nothing
+        @error "Config with name $(name) not found"
+        return
+    end
+    # Change the field in the config
+    # FIXME: Fieldname is the name of a member from the struct QCConfig
+    setfield!(qc.configs[config_idx], field, value)
+    @info "Changed $(field) to $(value) in config $(name)"
+end
+function change_config!(qc::QCBoard, field::Symbol, value)
+    change_config!(qc, qc.config.config_name, field, value)
 end
 
 # =================================================================================

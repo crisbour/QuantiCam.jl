@@ -103,11 +103,6 @@ end
     FPGA_LEDS
 end
 
-mutable struct QCConfigProfile
-    name::String
-    path::String
-end
-
 @serde @default_value mutable struct QCConfig
     # Identifier
     config_name::String                 | "default"
@@ -187,8 +182,8 @@ Base.@kwdef mutable struct QCBoard
     # --------------------------------------------------
     # Config parameters
     # ------------------------------------------------
-    # Config filename if derived from JSON
-    config_profiles::Vector{QCConfigProfile} = QCConfigProfile[]
+    # Configs loaded from file if derived from JSON
+    configs::Vector{QCConfig} = QCConfig[]
     config::QCConfig = deser_json(QCConfig, "{}")
 end
 
@@ -213,8 +208,8 @@ function QCBoard(
     # Setup with FPGA and correct register banks
     qc = QCBoard(fpga = fpga, bank = bank)
     if config_path !== nothing
-        # Set the profile name to the config path
-        new_profile!(qc, config_path)
+        # Set the config name to the config path
+        new_config!(qc, config_path)
     end
     finalizer(cleanup!, qc)
     qc

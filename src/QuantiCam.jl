@@ -8,7 +8,7 @@ using Logging
 using Random
 using Requires
 
-export QCBoard, init_board!, new_profile!, set_profile!
+export QCBoard, init_board!, new_config!, set_config!, change_config!
 
 include("types.jl")
 include("constants.jl")
