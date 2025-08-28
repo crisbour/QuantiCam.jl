@@ -223,11 +223,18 @@ end
 function find_qc_version(;fw_dir=nothing, fw_version="latest")
     # Find FW bitfile to write to the FPGA
     if fw_dir === nothing
-        if !haskey(ENV, "DATASTORE_3D_PATH")
-            @error "DATASTORE_3D_PATH not set"
-            return nothing
+        datastore_3d_path =
+            if !haskey(ENV, "DATASTORE_3D_PATH")
+                @warn "DATASTORE_3D_PATH not set, using default /mnt/datastore-3D"
+                "/mnt/datastore-3D"
+            else
+                ENV["DATASTORE_3D_PATH"]
+            end
+        if (!isdir(datastore_3d_path))
+            @error "Path $(datastore_3d_path) does not exist. Please set DATASTORE_3D_PATH environment variable to the correct path."
+            return
         end
-        fw_dir = joinpath(ENV["DATASTORE_3D_PATH"], "ms_lidar/fw")
+        fw_dir = joinpath(datastore_3d_path, "ms_lidar/fw")
     end
 
     fw_files = filter(f -> occursin(r"photon_cnt_tcspc_xem7310-a200_v\d+\.\d+\.\d+\.bit", f), readdir(fw_dir))
