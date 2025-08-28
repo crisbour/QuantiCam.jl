@@ -133,9 +133,9 @@ end
 # --------------------------------------------------
 
 function filter_code(
-    tdc_pixels::Union{Array{UInt8},Array{UInt16}};
+    tdc_pixels::Array{T};
     decode_mode::DecodeMode = Decoded,
-)
+)::Array{Union{T, Missing}} where T <: Union{UInt8, UInt16}
     nan_boxed_pixels = similar(tdc_pixels, Float32)
     # 0x04 is the code for missing data
     nan_boxed_pixels = if decode_mode == Decoded
@@ -159,6 +159,9 @@ function filter_code(
     nan_boxed_pixels
 end
 
+function filter_code(tdc_pixels::Array{T}, missing_code::Unsigned)::Array{Union{T, Missing}} where T <: Union{UInt8, UInt16}
+    map(x -> if (x == missing_code) missing else x end, tdc_pixels)
+end
 # Assume each pixel might have a slightly different ring-oscillator,
 # hence, based on this inferred TDC clock, we convert the timestamp to calibrated qualified timestamps
 function calibrate_tdc(data::Array{Float32}, freq::Array{Float32})
