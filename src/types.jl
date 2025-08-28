@@ -297,4 +297,7 @@ end
     ERROR_DATA_INTEGRITY                         = 16
     ERROR_UNEXPECTED_DATA                        = 17
     ERROR_TEST                                   = 18
+    ERROR_STOP_CLK_INVALID                       = 19
+    ERROR_READOUT_SENSOR_NOT_ACTIVE              = 20
+
 end
