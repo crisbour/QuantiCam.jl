@@ -14,12 +14,6 @@ const QUANTICAM_BANK::Dict{} = Dict{BankEnum,BankInfo}(
     TEST_COL_SECOND_PHOTON_MODE => BankInfo(0x4,  1,  2 ),
     TCSPC_MODE                  => BankInfo(0x4,  1,  3 ),
     FIFO_RDOUT_TEST             => BankInfo(0x4,  1,  4 ),
-    PIXEL_MODE                  => BankInfo(0x4,  2,  5 ),
-    DECODE_MODE                 => BankInfo(0x4,  2,  7 ),
-    OUTPUT_MODE                 => BankInfo(0x4,  2,  9 ),
-    HEADER_EN                   => BankInfo(0x4,  1,  11),
-    ERROR_BACKTRACE             => BankInfo(0x4,  1,  12),
-    ENABLE_ERROR_TEST           => BankInfo(0x4,  1,  13), # Errors bundle 4 bytes, with largest priority at byte 0
     FRAME_NUMBER                => BankInfo(0x5,  32, 0 ),  # WARN: Unused
     EXPOSURE_TIME               => BankInfo(0x6,  32, 0 ),
     ROW_ENABLES_0               => BankInfo(0x7,  32, 0 ),
@@ -39,14 +33,12 @@ const QUANTICAM_BANK::Dict{} = Dict{BankEnum,BankInfo}(
     CHIP_RST                    => BankInfo(0x40, 1,  4 ),
     PIX_RST                     => BankInfo(0x40, 1,  5 ),
     TRIGGER_END_CAPTURE         => BankInfo(0x40, 1,  6 ),
-    ERROR_RST                   => BankInfo(0x40, 1,  7 ),
     PROGRESETDAC                => BankInfo(0x41, 1,  0 ),
     PROGSETDAC                  => BankInfo(0x41, 1,  1 ),
     EP_READY                    => BankInfo(0x28, 1,  0 ),
     WR_DATA_COUNT               => BankInfo(0x29, 16, 0 ),
     RD_DATA_COUNT               => BankInfo(0x29, 16, 16),
     FIFO_OUT                    => BankInfo(0xa0, 32, 0 ),
-    ERROR_FIFO                  => BankInfo(0xb0, 32, 0 ),  # Errors bundle 4 bytes, with largest priority at byte 0
     ENABLE_GATING               => BankInfo(0x13, 1,  0 ),
     DELAY_FROM_STOP             => BankInfo(0x11, 32, 0 ),
     GATE_WIDTH                  => BankInfo(0x12, 32, 0 ),
@@ -58,7 +50,19 @@ const QUANTICAM_BANK::Dict{} = Dict{BankEnum,BankInfo}(
     PISO_READOUT_DELAY          => BankInfo(0x14, 8,  21),
     STOP_SOURCE_SELECT          => BankInfo(0x14, 1,  29),
     SYNC_DELAY_CLK_CYCLES       => BankInfo(0x15, 32, 0 ),
+
+    # New FW version added parameters for inspection and further settings
+    # -------------------------------------------------------------------
+    # NOTE: Mandatory fields to be set for the new FW are: PIXEL_MODE and DECODE_MODE
     FW_VERSION                  => BankInfo(0x30, 24, 0 ),  # FW Version (3 bytes, {major,minor,micro})
     ERROR_READY                 => BankInfo(0x31, 1,  0 ),
     FPGA_LEDS                   => BankInfo(0x16, 8,  0 ),
+    PIXEL_MODE                  => BankInfo(0x4,  2,  5 ),
+    DECODE_MODE                 => BankInfo(0x4,  2,  7 ),
+    OUTPUT_MODE                 => BankInfo(0x4,  2,  9 ), # NOTE: Unecessary at the moment, just premature MUX for customizing the FW
+    HEADER_EN                   => BankInfo(0x4,  1,  11),
+    ERROR_BACKTRACE             => BankInfo(0x4,  1,  12),
+    ENABLE_ERROR_TEST           => BankInfo(0x4,  1,  13), # Errors bundle 4 bytes, with largest priority at byte 0
+    ERROR_RST                   => BankInfo(0x40, 1,  7 ),
+    ERROR_FIFO                  => BankInfo(0xb0, 32, 0 ),  # Errors bundle 4 bytes, with largest priority at byte 0
 )
