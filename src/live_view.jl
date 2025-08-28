@@ -22,6 +22,10 @@ function capture_and_process(qc::QCBoard)
 
 end
 
+# ------------------------------------------------
+# Live view functions
+# ------------------------------------------------
+
 function live_intensity(qc::QCBoard; frames=50)
     # Activate GLMakie
     GLMakie.activate!()
@@ -40,7 +44,7 @@ function live_intensity(qc::QCBoard; frames=50)
     menu = Menu(fig, options = ["viridis", "lajolla", "heat", "blues"], default = "viridis")
     exposure_slg = SliderGrid(fig,
         (label="Exposure Time", range = Unsigned.(1:500), startvalue=Unsigned(50)),
-        (label="Frames", range = Unsigned.(1:200), startvalue=Unsigned(50)))
+        (label="Frames", range = Unsigned.(1:200), startvalue=Unsigned(frames)))
     fig[1,1] = vgrid!(hgrid!(
         Label(fig, "Colormap", width = nothing),
         menu),
@@ -65,8 +69,11 @@ function live_intensity(qc::QCBoard; frames=50)
         change_config!(qc, "intensity", :exposure_time, exposure_time)
         set_config!(qc, "intensity")
     end
+
+    # Thread-safe variable for frames
+    atomic_frames = Threads.Atomic{Int}(frames)
     on(exposure_slg.sliders[2].value) do slider_frames
-        frames = slider_frames
+        atomic_frames[] = slider_frames
     end
 
     rowsize!(fig.layout, 2, Relative(0.8))
@@ -90,17 +97,42 @@ function live_intensity(qc::QCBoard; frames=50)
         end
     end
 
-    # Live loop while figure is open
-    while isopen(fig.scene)
-        intensity_frames = capture_frames(qc, frames)
-        intensity_frame = reduce(.+, intensity_frames)
-        # Update the heatmap data
-        hm[1] = transpose(intensity_frame)# In Makie v0.16+, heatmap data is accessed like this
-
-        # Force redraw/update
-        yield()
-        #heatmap(one_frame)
+    ch_intensity_frame = Channel{Matrix{UInt64}}(1)
+    # Spawn a new thread
+    producer = Threads.@spawn begin
+        while true
+            try
+                intensity_frames = capture_frames(qc, atomic_frames[])
+                intensity_frame = reduce(.+, intensity_frames)
+                intensity_frame = transpose(intensity_frame) # Transpose to match Makie orientation
+                if !isopen(ch_intensity_frame)
+                    break
+                end
+                put!(ch_intensity_frame, intensity_frame)
+            catch e
+                @error "Error in producer thread: $e"
+                break
+            end
+        end
     end
+
+    consumer = Threads.@spawn begin
+        # Live loop while figure is open
+        while isopen(fig.scene)
+            try
+                # Update the heatmap data
+                intensity_frame = take!(ch_intensity_frame)
+                hm[1] = intensity_frame # Update heatmap data
+                yield() # Force redraw/update
+            catch e
+                @error "Error in consumer thread: $e"
+                break
+            end
+        end
+    end
+    wait(consumer)
+    close(ch_intensity_frame)
+    wait(producer)
 end
 
 # Live depth view
