@@ -37,7 +37,7 @@ function config_sensor(qc::QCBoard)
         return
     end
 
-    @info "Configuring Sensor with config \"$(qc.config.config_name)\" from path $(qc.config.config_path)"
+    @debug "Configuring Sensor with config \"$(qc.config.config_name)\" from path $(qc.config.config_path)"
 
     # Calculate exposure time in clock cycles
     exposure_time = 100 * qc.config.exposure_time #exposure in 10ns steps
@@ -107,7 +107,7 @@ function config_sensor(qc::QCBoard)
     #wireindata(obj.okComms,obj.bank,FRAME_NUMBER,frame_number)
 
     activate_trigger_in(qc, CONFIG_SI_TRIGGER)
-    @info "Sensor configured"
+    @info "Sensor configured with config \"$(qc.config.config_name)\""
 end
 
 # connect the sensor
@@ -192,6 +192,11 @@ function new_config!(qc::QCBoard, name::String, config_path::String)
     else
         push!(qc.configs, config)
     end
+
+    if qc.config.config_name == name
+        @info "Reloading active config"
+        set_config!(qc, name)
+    end
 end
 function new_config!(qc::QCBoard, config_path::String)
     new_config!(qc, "default", config_path)
@@ -204,8 +209,12 @@ function set_config!(qc::QCBoard, name::String)
         return
     end
     qc.config = qc.configs[config_idx]
-    config_sensor(qc)
-    @debug "Reconfiguring sensor with config $(qc.config.config_name)"
+    if qc.sensor_status == Connected
+        @debug "Configuring sensor with config $(qc.config.config_name)"
+        config_sensor(qc)
+    else
+        @warn "Sensor not connected, cannot reconfigure"
+    end
 end
 
 function get_firmware_rev!(qc::QCBoard)
