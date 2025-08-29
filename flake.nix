@@ -75,7 +75,7 @@
             shellHook = ''
               export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.udev}/lib:${pkgs.libGL}/lib
               # IJulia doesn't need to be part of this package, as this is necessary just for the example notebooks
-              julia --project -e 'using Pkg; Pkg.add("IJulia"); using IJulia; installkernel("julia-qc", "--project=$(pwd())");'
+              julia --project -e 'using IJulia; installkernel("julia-qc", "--project=$(pwd())");'
             '';
           };
         };
