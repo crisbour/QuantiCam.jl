@@ -54,12 +54,6 @@ end
     TEST_COL_SECOND_PHOTON_MODE
     TCSPC_MODE
     FIFO_RDOUT_TEST
-    PIXEL_MODE
-    DECODE_MODE
-    OUTPUT_MODE
-    HEADER_EN
-    ERROR_BACKTRACE
-    ENABLE_ERROR_TEST
     FRAME_NUMBER
     EXPOSURE_TIME
     ROW_ENABLES_0
@@ -78,7 +72,6 @@ end
     FIFO_RST
     CHIP_RST
     PIX_RST
-    ERROR_RST
     TRIGGER_END_CAPTURE
     PROGRESETDAC
     PROGSETDAC
@@ -86,7 +79,6 @@ end
     WR_DATA_COUNT
     RD_DATA_COUNT
     FIFO_OUT
-    ERROR_FIFO
     ENABLE_GATING
     DELAY_FROM_STOP
     GATE_WIDTH
@@ -100,7 +92,16 @@ end
     SYNC_DELAY_CLK_CYCLES
     FW_VERSION
     ERROR_READY
+    STOP_VALID
     FPGA_LEDS
+    PIXEL_MODE
+    DECODE_MODE
+    OUTPUT_MODE
+    HEADER_EN
+    ERROR_BACKTRACE
+    ENABLE_ERROR_TEST
+    ERROR_RST
+    ERROR_FIFO
 end
 
 @serde @default_value mutable struct QCConfig
@@ -298,6 +299,7 @@ end
     ERROR_DATA_INTEGRITY                         = 16
     ERROR_UNEXPECTED_DATA                        = 17
     ERROR_TEST                                   = 18
+    # Clock checks to protect the sensor chip
     ERROR_STOP_CLK_INVALID                       = 19
     ERROR_READOUT_SENSOR_NOT_ACTIVE              = 20
 

@@ -56,6 +56,7 @@ const QUANTICAM_BANK::Dict{} = Dict{BankEnum,BankInfo}(
     # NOTE: Mandatory fields to be set for the new FW are: PIXEL_MODE and DECODE_MODE
     FW_VERSION                  => BankInfo(0x30, 24, 0 ),  # FW Version (3 bytes, {major,minor,micro})
     ERROR_READY                 => BankInfo(0x31, 1,  0 ),
+    STOP_VALID                  => BankInfo(0x31, 1,  8 ),
     FPGA_LEDS                   => BankInfo(0x16, 8,  0 ),
     PIXEL_MODE                  => BankInfo(0x4,  2,  5 ),
     DECODE_MODE                 => BankInfo(0x4,  2,  7 ),
