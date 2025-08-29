@@ -132,35 +132,40 @@ end
 # Qualify pixel reads to float + nan boxing based on codes
 # --------------------------------------------------
 
+function filter_code(tdc_pixel::T; decode_mode::DecodeMode=Decoded)::Union{T, Missing} where T <: Union{UInt8, UInt16}
+    # 0x04 is the code for missing data
+    if decode_mode == Decoded
+        if tdc_pixel isa UInt16
+            if tdc_pixel == 0x1ff
+                return missing
+            else
+                return tdc_pixel
+            end
+        else
+            if tdc_pixel == 0xff
+                return missing
+            else
+                return tdc_pixel
+            end
+        end
+    else
+        return tdc_pixel
+    end
+end
+
 function filter_code(
     tdc_pixels::Array{T};
     decode_mode::DecodeMode = Decoded,
 )::Array{Union{T, Missing}} where T <: Union{UInt8, UInt16}
-    nan_boxed_pixels = similar(tdc_pixels, Float32)
-    # 0x04 is the code for missing data
-    nan_boxed_pixels = if decode_mode == Decoded
-        if tdc_pixels isa Array{UInt16}
-            map(x -> if (x == 0x1ff)
-                missing
-            else
-                x
-            end, tdc_pixels)
-        else
-            map(x -> if (x == 0xff)
-                missing
-            else
-                x
-            end, tdc_pixels)
-        end
-    else
-        tdc_pixels
-        #map(x-> if(x==0x000) missing else Float32(x) end, tdc_pixels)
-    end
-    nan_boxed_pixels
+    map(x -> filter_code(x, decode_mdoe))
+end
+
+function filter_code(tdc_pixel::T, missing_code::Unsigned)::Union{T, Missing} where T <: Union{UInt8, UInt16}
+    if (x == missing_code) missing else x end
 end
 
 function filter_code(tdc_pixels::Array{T}, missing_code::Unsigned)::Array{Union{T, Missing}} where T <: Union{UInt8, UInt16}
-    map(x -> if (x == missing_code) missing else x end, tdc_pixels)
+    map(x -> filter_code(x), tdc_pixels)
 end
 # Assume each pixel might have a slightly different ring-oscillator,
 # hence, based on this inferred TDC clock, we convert the timestamp to calibrated qualified timestamps
