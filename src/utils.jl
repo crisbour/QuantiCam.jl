@@ -285,6 +285,7 @@ function change_config!(qc::QCBoard, name::String, field::Symbol, value)
     # Change the field in the config
     # FIXME: Fieldname is the name of a member from the struct QCConfig
     setfield!(qc.configs[config_idx], field, value)
+    qc.configs[config_idx].dirty = true
     @info "Changed $(field) to $(value) in config $(name)"
 end
 function change_config!(qc::QCBoard, field::Symbol, value)

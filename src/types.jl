@@ -107,6 +107,7 @@ end
     # Identifier
     config_name::String                 | "default"
     config_path::String                 | ""
+    dirty::Bool                         | true # Set if SPAD state mismatches API state
 
     # Constants
     rows::Unsigned                      | 192

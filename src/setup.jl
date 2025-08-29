@@ -191,6 +191,7 @@ function new_config!(qc::QCBoard, name::String, config_path::String)
         qc.configs[config_idx] = config
     else
         push!(qc.configs, config)
+        config_idx = length(qc.configs)
     end
 
     if qc.config.config_name == name
@@ -208,11 +209,16 @@ function set_config!(qc::QCBoard, name::String)
         @error "Config with name $(name) not found"
         return
     end
+
+    prev_name = qc.config.config_name
+    dirty = qc.configs[config_idx].dirty
+    qc.configs[config_idx].dirty = false
     qc.config = qc.configs[config_idx]
-    if qc.sensor_status == Connected
+
+    if qc.sensor_status == Connected && (dirty || prev_name != qc.config.config_name)
         @debug "Configuring sensor with config $(qc.config.config_name)"
         config_sensor(qc)
-    else
+    elseif qc.sensor_status != Connected
         @warn "Sensor not connected, cannot reconfigure"
     end
 end
