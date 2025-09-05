@@ -157,7 +157,7 @@ function filter_code(
     tdc_pixels::Array{T};
     decode_mode::DecodeMode = Decoded,
 )::Array{Union{T, Missing}} where T <: Union{UInt8, UInt16}
-    map(x -> filter_code(x, decode_mdoe))
+    map(x -> filter_code(x, decode_mode=decode_mode), tdc_pixels)
 end
 
 function filter_code(tdc_pixel::T, missing_code::Unsigned)::Union{T, Missing} where T <: Union{UInt8, UInt16}
@@ -165,7 +165,7 @@ function filter_code(tdc_pixel::T, missing_code::Unsigned)::Union{T, Missing} wh
 end
 
 function filter_code(tdc_pixels::Array{T}, missing_code::Unsigned)::Array{Union{T, Missing}} where T <: Union{UInt8, UInt16}
-    map(x -> filter_code(x), tdc_pixels)
+    map(x -> filter_code(x, missing_code), tdc_pixels)
 end
 # Assume each pixel might have a slightly different ring-oscillator,
 # hence, based on this inferred TDC clock, we convert the timestamp to calibrated qualified timestamps
