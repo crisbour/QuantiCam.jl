@@ -161,7 +161,7 @@ function filter_code(
 end
 
 function filter_code(tdc_pixel::T, missing_code::Unsigned)::Union{T, Missing} where T <: Union{UInt8, UInt16}
-    if (x == missing_code) missing else x end
+    if (tdc_pixel == missing_code) missing else tdc_pixel end
 end
 
 function filter_code(tdc_pixels::Array{T}, missing_code::Unsigned)::Array{Union{T, Missing}} where T <: Union{UInt8, UInt16}
