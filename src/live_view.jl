@@ -236,7 +236,7 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
     # Selected pixel histogram
     # ---------------------------------
     hist_slg = SliderGrid(fig,
-        (label="Exposure Time", range = Unsigned.(2 .^ (2:9)), startvalue=Unsigned(32)),
+        (label="Exposure Time", range = Unsigned.(2 .^ (2:10)), startvalue=Unsigned(32)),
         (label="Frames", range = Unsigned.(1:500), startvalue=Unsigned(n_frames)),
         (label="Histogram bins", range = 2 .^ (2:12), startvalue=100)
     )

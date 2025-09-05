@@ -49,6 +49,7 @@ end
 
 update_wire_ins(qc::QCBoard)  = @show_error OpalKelly.update_wire_ins(qc.fpga)
 update_wire_outs(qc::QCBoard) = @show_error OpalKelly.update_wire_outs(qc.fpga)
+update_trigger_outs(qc::QCBoard)  = @show_error OpalKelly.update_trigger_outs(qc.fpga)
 
 """
 Read data in blocks of element size
@@ -130,9 +131,9 @@ function read_from_pipe_out(
     end
 end
 
-function prog_DAC(qc::QCBoard, ProgResetDACName::BankEnum)
+function prog_DAC(qc::QCBoard, ProgDACName::BankEnum)
     # Reset trigger for DACs
-    activate_trigger_in(qc, ProgResetDACName)
+    activate_trigger_in(qc, ProgDACName)
 end
 
 function ramp_DAC(
@@ -196,10 +197,10 @@ function is_triggered(qc::QCBoard, trigname)
     else
         (addr, size, bit) = convert(Tuple, qc.bank[trigname])
         sz = 2^(size) - 1
-        mask = UInt16(sz << bit)
+        mask = UInt32(sz << bit)
 
         update_trigger_outs(qc)
-        trig = is_triggered(qc.fpga, addr, mask)
+        trig = OpalKelly.is_triggered(qc.fpga, addr, mask)
     end
     trig
 end

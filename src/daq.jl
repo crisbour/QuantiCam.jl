@@ -73,7 +73,7 @@ function capture_frames(
 )::Vector{Matrix{UInt16}} where {T}
     # Captures the requested amount of data (size) from the sensor.
     words = number_of_frames * qc.config.frame_size
-    packet = 1024
+    packet = 8192
     if (element_size(qc) == 1)
         data_8bits::Vector{UInt8} = fill(UInt16(0), words)
     else
