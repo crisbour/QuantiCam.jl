@@ -61,24 +61,44 @@ function config_sensor(qc::QCBoard)
         qc.config.second_photon_mode_enable == 0 ? 1 :
         qc.config.second_photon_mode_enable == 1 ? 0 : qc.config.second_photon_mode_enable
 
-    @debug "Initialize logic parameters necessary to interact with the sensor"
-    set_wire_in_value(qc, STOP_CLK_DIVIDER, qc.config.stop_clk_divider)
-    set_wire_in_value(qc, LAST_ROW, qc.config.last_row)
-    set_wire_in_value(qc, BYTE_SELECT, UInt32(qc.config.byte_select))
-    set_wire_in_value(qc, BYTE_SELECT_MSB, UInt32(qc.config.byte_select_msb))
-    set_wire_in_value(qc, PISO_READOUT_DELAY, qc.config.piso_readout_delay)
-    set_wire_in_value(qc, STOP_SOURCE_SELECT, UInt32(qc.config.stop_source_select))
-    set_wire_in_value(qc, SYNC_DELAY_CLK_CYCLES, qc.config.sync_delay_clk_cycles)
-    set_wire_in_value(qc, HEADER_EN, UInt32(qc.config.header_en))
+    # Based on firmware version, change division and phase accordingly
+    stop_clk_divider = 0
+    if qc.firmware_revision >= FWRevision(2,0,0)
+        # New FW version, phase offset is now in a separate register
+        set_wire_in_value(qc, LASER_STOP_PHASE, UInt32(round(qc.config.phase_offset * 1000))) # Phase offset in mdeg
+        @debug "Setting phase offset to $(qc.config.phase_offset) degrees"
+        stop_clk_divider = qc.config.stop_clk_divider
+    else
+        # Old FW version, phase offset is set via the sync_delay_clk_cycles
+        set_wire_in_value(qc, SYNC_DELAY_CLK_CYCLES, qc.config.sync_delay_clk_cycles)
+        if qc.config.phase_offset != 0.0
+            @warn "Phase offset setting not supported in firmware versions <= 1.9.x, use sync_delay_clk_cycles instead"
+        end
+        if (stop_clk_divider != 0)
+            if (qc.config.stop_clk_divider % 2 != 0)
+                @warn "stop_clk_divider must be even for firmware versions <= 1.9.x, rounding down"
+            end
+            stop_clk_divider = qc.config.stop_clk_divider ÷ 2 - 1
+        end
+    end
 
-    set_wire_in_value(qc, ENABLE_GATING, UInt32(qc.config.enable_gating))
-    set_wire_in_value(qc, DELAY_FROM_STOP, UInt32(qc.config.delay))
-    set_wire_in_value(qc, GATE_WIDTH, UInt32(qc.config.gate_width))
+    @debug "Initialize logic parameters necessary to interact with the sensor"
+    set_wire_in_value(qc, STOP_CLK_DIVIDER  , stop_clk_divider                    )
+    set_wire_in_value(qc, LAST_ROW          , qc.config.last_row                  )
+    set_wire_in_value(qc, BYTE_SELECT       , UInt32(qc.config.byte_select)       )
+    set_wire_in_value(qc, BYTE_SELECT_MSB   , UInt32(qc.config.byte_select_msb)   )
+    set_wire_in_value(qc, PISO_READOUT_DELAY, qc.config.piso_readout_delay        )
+    set_wire_in_value(qc, STOP_SOURCE_SELECT, UInt32(qc.config.stop_source_select))
+    set_wire_in_value(qc, HEADER_EN         , UInt32(qc.config.header_en)         )
+
+    set_wire_in_value(qc, ENABLE_GATING     , UInt32(qc.config.enable_gating)     )
+    set_wire_in_value(qc, DELAY_FROM_STOP   , UInt32(qc.config.delay)             )
+    set_wire_in_value(qc, GATE_WIDTH        , UInt32(qc.config.gate_width)        )
 
     # Debugging settings
-    set_wire_in_value(qc, ERROR_BACKTRACE, UInt32(qc.config.error_backtrace))
-    set_wire_in_value(qc, ENABLE_ERROR_TEST, UInt32(qc.config.error_test))
-    set_wire_in_value(qc, FIFO_RDOUT_TEST, UInt32(qc.config.fifo_rdout_test))
+    set_wire_in_value(qc, ERROR_BACKTRACE   , UInt32(qc.config.error_backtrace)   )
+    set_wire_in_value(qc, ENABLE_ERROR_TEST , UInt32(qc.config.error_test)        )
+    set_wire_in_value(qc, FIFO_RDOUT_TEST   , UInt32(qc.config.fifo_rdout_test)   )
 
     @debug "Reset sensor and set parameters for the MODE of use"
     activate_trigger_in(qc, CHIP_RST)
@@ -107,7 +127,16 @@ function config_sensor(qc::QCBoard)
     #wireindata(obj.okComms,obj.bank,FRAME_NUMBER,frame_number)
 
     activate_trigger_in(qc, CONFIG_SI_TRIGGER)
-    @info "Sensor configured with config \"$(qc.config.config_name)\""
+
+    if qc.firmware_revision >= FWRevision(2,0,0)
+        activate_trigger_in(qc, CLKS_CONFIG_TRIGGER)
+        div_fixed = get_wire_out_value(qc, STOP_CLK_DIVIDER_RESP)
+        div_float = Float16(Int(div_fixed>>3)) / 32.0
+    else
+        div_float = Float16(Int(2*(qc.config.stop_clk_divider+1)))
+    end
+
+    @info "Sensor configured with config \"$(qc.config.config_name)\" and STOP_CLK=$(100 / div_float) MHz and phase: $(qc.config.phase_offset) degrees"
 end
 
 # connect the sensor
@@ -230,7 +259,7 @@ function get_firmware_rev!(qc::QCBoard)
     major = (rev >> 16) & 0xFF
     minor = (rev >> 8) & 0xFF
     patch = rev & 0xFF
-    rev = string(major, ".", minor, ".", patch)
+    rev = FWRevision(major, minor, patch)
     qc.firmware_revision = rev
     @info "Firmware revision: $rev"
 end

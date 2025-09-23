@@ -35,6 +35,14 @@ struct BankInfo
     bit::UInt8
 end
 
+struct FWRevision
+    major::UInt8
+    minor::UInt8
+    micro::UInt8 # or path
+end
+Base.show(io::IO, fw_rev::FWRevision) = print(io, "$(fw_rev.major).$(fw_rev.minor).$(fw_rev.micro)")
+Base.isless(left::FWRevision, right::FWRevision) = (left.major, left.minor, left.micro) < (right.major, right.minor, right.micro)
+
 function Base.convert(::Type{Tuple}, x::BankInfo)
     # Initialize state with current px and py values of IterPoints
     return (x.addr, x.size, x.bit)
@@ -90,9 +98,17 @@ end
     PISO_READOUT_DELAY
     STOP_SOURCE_SELECT
     SYNC_DELAY_CLK_CYCLES
+
+    # New FW version added parameters for inspection and further settings
+    # -------------------------------------------------------------------
+    LASER_STOP_PHASE
+    CLKS_CONFIG_TRIGGER
+    STOP_CLK_DIVIDER_RESP
+    LASER_STOP_PHASE_RESP
     FW_VERSION
     ERROR_READY
     STOP_VALID
+    PLL_LOCKED
     STOP_UNCHANGED_CNT
     SPAD_ACTIVE
     DAC_RESET
@@ -110,46 +126,47 @@ end
 
 @serde @default_value mutable struct QCConfig
     # Identifier
-    config_name::String                 | "default"
-    config_path::String                 | ""
-    dirty::Bool                         | true # Set if SPAD state mismatches API state
+    config_name               ::String     | "default"
+    config_path               ::String     | ""
+    dirty                     ::Bool       | true # Set if SPAD state mismatches API state
 
     # Constants
-    rows::Unsigned                      | 192
-    cols::Unsigned                      | 128
+    rows                      ::Unsigned   | 192
+    cols                      ::Unsigned   | 128
     # TODO: Add assertion frame_size = | rows*cols or replace field with fn call
-    frame_size::Unsigned                | 24576 #rows*cols
+    frame_size                ::Unsigned   | 24576 #rows*cols
 
     # Setup parameters
     # 192 rows, 128 columns, hex string expressed in little-endian: i.e.
-    row_enables::String                 | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
-    col_enables::String                 | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+    row_enables               ::String     | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+    col_enables               ::String     | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
 
-    pixel_mode::PixelMode               | TCSPC
-    decode_mode::DecodeMode             | Decoded
-    output_mode::OutputMode             | Standard
-    header_en::Bool                     | true # Enable header in the output stream
+    pixel_mode                ::PixelMode  | TCSPC
+    decode_mode               ::DecodeMode | Decoded
+    output_mode               ::OutputMode | Standard
+    header_en                 ::Bool       | true # Enable header in the output stream
 
-    tcspc::Bool                         | false
-    second_photon_mode_enable::Unsigned | false
-    gs_rs_mode::Unsigned                | 1
-    enable_gating::Bool                 | false
-    test_col_enable::Bool               | false # Enable this column to do calibration
-    exposure_time::Unsigned             | 500 #exposure in us
-    delay::Unsigned                     | 10 #multiples of 10ns; Delay from STOP => 20 * 10 ns = 200 ns
-    gate_width::Unsigned                | 2 #multiples of 10ns;  Gate width in clock cycles => 2 * 10 ns = 20 ns
+    tcspc                     ::Bool       | false
+    second_photon_mode_enable ::Unsigned   | false
+    gs_rs_mode                ::Unsigned   | 1
+    enable_gating             ::Bool       | false
+    test_col_enable           ::Bool       | false # Enable this column to do calibration
+    exposure_time             ::Unsigned   | 500 #exposure in us
+    delay                     ::Unsigned   | 10 #multiples of 10ns; Delay from STOP => 20 * 10 ns = 200 ns
+    gate_width                ::Unsigned   | 2 #multiples of 10ns;  Gate width in clock cycles => 2 * 10 ns = 20 ns
 
-    stop_clk_divider::Unsigned          | 0
-    last_row::Unsigned                  | 95
-    byte_select::Bool                   | false
-    byte_select_msb::Bool               | false
-    piso_readout_delay::Unsigned        | 19
-    stop_source_select::Bool            | false
-    sync_delay_clk_cycles::Unsigned     | 0
+    stop_clk_divider          ::Unsigned   | 0
+    phase_offset              ::Float32    | 0.0 # ∈ [0.0, 360.0]
+    last_row                  ::Unsigned   | 95
+    byte_select               ::Bool       | false
+    byte_select_msb           ::Bool       | false
+    piso_readout_delay        ::Unsigned   | 19
+    stop_source_select        ::Bool       | false
+    sync_delay_clk_cycles     ::Unsigned   | 0
 
-    error_backtrace::Bool               | 0 # 0: Forward trace, 1: Backwards trace
-    error_test::Bool                    | 0 # 1 => Assign least priority line with ERROR_TEST signal
-    fifo_rdout_test::Bool               | 0 # Enable readout emulation, to test serialiser->usb readout pipeline
+    error_backtrace           ::Bool       | 0 # 0: Forward trace, 1: Backwards trace
+    error_test                ::Bool       | 0 # 1 => Assign least priority line with ERROR_TEST signal
+    fifo_rdout_test           ::Bool       | 0 # Enable readout emulation, to test serialiser->usb readout pipeline
 end
 
 Base.@kwdef mutable struct QCBoard
@@ -183,7 +200,7 @@ Base.@kwdef mutable struct QCBoard
 
     # Info
     sensor_status::SensorStatus = Disconnected  # Other allowed value is 'Connected'
-    firmware_revision::String = ""
+    firmware_revision::FWRevision = FWRevision(0,5,0)
 
     # --------------------------------------------------
     # Config parameters
@@ -306,5 +323,9 @@ end
     # Clock checks to protect the sensor chip
     ERROR_STOP_CLK_INVALID                       = 19
     ERROR_READOUT_SENSOR_NOT_ACTIVE              = 20
-
+    # External Clocks
+    ERROR_DPR_NOT_CONFIGURED                     = 21
+    ERROR_PLL_RESET                              = 22
+    ERROR_PLL_DELAYED_RESET                      = 23
+    ERROR_PLL_NOT_LOCKED                         = 24
 end

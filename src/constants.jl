@@ -54,9 +54,14 @@ const QUANTICAM_BANK::Dict{} = Dict{BankEnum,BankInfo}(
     # New FW version added parameters for inspection and further settings
     # -------------------------------------------------------------------
     # NOTE: Mandatory fields to be set for the new FW are: PIXEL_MODE and DECODE_MODE
+    LASER_STOP_PHASE            => BankInfo(0x15, 32, 0 ),  # LASER_STOP relative to SPAD_STOP phase difference ∈ [-360, 360] * 1000
+    CLKS_CONFIG_TRIGGER         => BankInfo(0x40, 1,  8 ),
+    STOP_CLK_DIVIDER_RESP       => BankInfo(0x32, 16, 0 ),
+    LASER_STOP_PHASE_RESP       => BankInfo(0x33, 32, 0 ),
     FW_VERSION                  => BankInfo(0x30, 24, 0 ),  # FW Version (3 bytes, {major,minor,micro})
     ERROR_READY                 => BankInfo(0x31, 1,  0 ),
     STOP_VALID                  => BankInfo(0x31, 1,  8 ),
+    PLL_LOCKED                  => BankInfo(0x31, 1,  9 ),
     STOP_UNCHANGED_CNT          => BankInfo(0x31, 7,  9 ),
     SPAD_ACTIVE                 => BankInfo(0x31, 1,  16),
     DAC_RESET                   => BankInfo(0x60, 1,  0 ),

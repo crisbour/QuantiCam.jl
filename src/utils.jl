@@ -293,6 +293,32 @@ function change_config!(qc::QCBoard, field::Symbol, value)
 end
 
 # =================================================================================
+# Debug functions for interpretting WireOut values
+# =================================================================================
+
+function show_phase(qc::QCBoard)
+    phase_bundle::UInt32 = get_wire_out_value(qc, LASER_STOP_PHASE_RESP)
+    logic_delay = Int((phase_bundle >> 24) & 0xFF)
+    phase_pll = Int(phase_bundle & 0xFFFFFF)
+    @info "LASER_STOP_PHASE_RESP: logic_delay=$(logic_delay), phase_pll=$(phase_pll)"
+end
+
+function show_clk_division(qc::QCBoard)
+    clk_div_fixed::UInt16 = get_wire_out_value(qc, STOP_CLK_DIVIDER_RESP)
+    decimal = Int((clk_div_fixed >> 8) & 0xFF)
+    fractional = Int(clk_div_fixed & 0xFF)
+    clk_div = decimal + (fractional / 256);
+    @info "STOP_CLK_DIVIDER_RESP: $clk_div"
+end
+
+function expected_phase(division::Integer, phase)
+    cycles_float = (phase / 360_000) * division
+    cycles_int = floor(Int, cycles_float)
+    phase_pll = Int(round((cycles_float-cycles_int) * 360_000))
+    @info "Expected phase for division=$division: (cycles_int=$cycles_int, phase_pll=$phase_pll)"
+end
+
+# =================================================================================
 # Misc, functions ported from MATLAB that shouldn't be needed
 # or not sure what they are useful for
 # =================================================================================
