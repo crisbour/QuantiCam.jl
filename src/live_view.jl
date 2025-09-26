@@ -236,9 +236,10 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
     # Selected pixel histogram
     # ---------------------------------
     hist_slg = SliderGrid(fig,
-        (label="Exposure Time", range = Unsigned.(2 .^ (2:10)), startvalue=Unsigned(32)),
+        (label="Exposure Time", range = Unsigned.(2 .^ (2:10)), startvalue=Unsigned(128)),
         (label="Frames", range = Unsigned.(1:500), startvalue=Unsigned(n_frames)),
-        (label="Histogram bins", range = 2 .^ (2:12), startvalue=100)
+        (label="Histogram bins", range = 2 .^ (2:12), startvalue=100),
+        (label="Phase offset", range = 0:5:360, startvalue=0)
     )
     g_hist[1,1] = vgrid!(
         hist_slg
@@ -307,6 +308,11 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
         on(hist_slg.sliders[3].value) do bins
             delete!(ax_hist, pixel_hist[])  # Clear the axis before re-plotting
             pixel_hist[] = hist!(ax_hist, data_hist, bins=bins)
+        end
+        on(hist_slg.sliders[4].value) do phase_offset
+            lock(qc_lock) do
+                set_phase!(qc, phase_offset)
+            end
         end
         # Live loop while figure is open
         while isopen(fig.scene)

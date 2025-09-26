@@ -2,7 +2,7 @@
 # Setup FPGA, Sensor and Configs
 # -------------------------------------
 
-export init_board!, config_sensor, reload_config, get_firmware_rev!
+export init_board!, config_sensor, set_config!, new_config!, set_phase!, set_delay!
 
 # Initialize FPGA with bitfile provided and settings in FPGA
 function init_board!(qc::QCBoard)
@@ -92,7 +92,7 @@ function config_sensor(qc::QCBoard)
     set_wire_in_value(qc, HEADER_EN         , UInt32(qc.config.header_en)         )
 
     set_wire_in_value(qc, ENABLE_GATING     , UInt32(qc.config.enable_gating)     )
-    set_wire_in_value(qc, DELAY_FROM_STOP   , UInt32(qc.config.delay)             )
+    set_wire_in_value(qc, DELAY_FROM_STOP   , UInt32(qc.config.gate_delay)             )
     set_wire_in_value(qc, GATE_WIDTH        , UInt32(qc.config.gate_width)        )
 
     # Debugging settings
@@ -131,9 +131,9 @@ function config_sensor(qc::QCBoard)
     if qc.firmware_revision >= FWRevision(2,0,0)
         activate_trigger_in(qc, CLKS_CONFIG_TRIGGER)
         div_fixed = get_wire_out_value(qc, STOP_CLK_DIVIDER_RESP)
-        div_float = Float16(Int(div_fixed>>3)) / 32.0
+        div_float = Float32(Int(div_fixed>>3)) / 32.0
     else
-        div_float = Float16(Int(2*(qc.config.stop_clk_divider+1)))
+        div_float = Float32(Int(2*(qc.config.stop_clk_divider+1)))
     end
 
     @info "Sensor configured with config \"$(qc.config.config_name)\" and STOP_CLK=$(100 / div_float) MHz and phase: $(qc.config.phase_offset) degrees"
@@ -252,16 +252,51 @@ function set_config!(qc::QCBoard, name::String)
     end
 end
 
-function get_firmware_rev!(qc::QCBoard)
-    # Get firmware revision
-    rev = get_wire_out_value(qc, FW_VERSION)
-    # Parse UInt32 into Major.Minor.Patch format from bytes 2,1,0
-    major = (rev >> 16) & 0xFF
-    minor = (rev >> 8) & 0xFF
-    patch = rev & 0xFF
-    rev = FWRevision(major, minor, patch)
-    qc.firmware_revision = rev
-    @info "Firmware revision: $rev"
+"""
+    set_phase!(qc::QCBoard, ϕ::Real)
+Set delay of the LASER_STOP from the SPAD_STOP, in order to improve histogram width for a certain depth
+# Arguemnts:
+- `qc::QCBoard`: The QCBoard instance
+- `ϕ::Real`: Phase shift in degrees, ϕ∈[0, 360]
+"""
+function set_phase!(qc::QCBoard, ϕ::Real)
+    for config in qc.configs
+        change_config!(qc, config.config_name, :phase_offset, Float32(ϕ))
+    end
+    if qc.sensor_status != Connected
+        @warn "Sensor not connected, cannot reconfigure"
+        return
+    end
+    # Based on firmware version, change division and phase accordingly
+    if qc.firmware_revision >= FWRevision(2,0,0)
+        # New FW version, phase offset is now in a separate register
+        set_wire_in_value(qc, LASER_STOP_PHASE, UInt32(round(qc.config.phase_offset * 1000))) # Phase offset in mdeg
+        @debug "Setting phase offset to $(qc.config.phase_offset) degrees"
+        activate_trigger_in(qc, CLKS_CONFIG_TRIGGER)
+    else
+        # Old FW version, phase offset is set via the sync_delay_clk_cycles
+        @error "Phase offset setting not supported in firmware versions < 2.0.0, use sync_delay_clk_cycles instead"
+    end
+end
+
+"""
+    set_delay!(qc::QCBoard, ΔT::Real)
+Set delay of the LASER_STOP from the SPAD_STOP, in order to improve histogram width for a certain depth
+# Arguemnts:
+- `qc::QCBoard`: The QCBoard instance
+- `ΔT::Real`: Delay in ns
+"""
+function set_delay!(qc::QCBoard, ΔT::Real)
+    if qc.sensor_status != Connected
+        @warn "Sensor not connected, cannot reconfigure"
+        return
+    end
+    div_fixed = get_wire_out_value(qc, STOP_CLK_DIVIDER_RESP)
+    div_float = Float32(Int(div_fixed>>3)) / 32.0
+    stop_freq = 100.0 / div_float # in MHz
+    stop_period = 1 / stop_freq
+    phase = (ΔT / stop_period) * 360.0
+    set_phase!(qc, phase)
 end
 
 # -------------------------------------

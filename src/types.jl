@@ -152,8 +152,8 @@ end
     enable_gating             ::Bool       | false
     test_col_enable           ::Bool       | false # Enable this column to do calibration
     exposure_time             ::Unsigned   | 500 #exposure in us
-    delay                     ::Unsigned   | 10 #multiples of 10ns; Delay from STOP => 20 * 10 ns = 200 ns
-    gate_width                ::Unsigned   | 2 #multiples of 10ns;  Gate width in clock cycles => 2 * 10 ns = 20 ns
+    gate_delay                ::Unsigned   | 10 #multiples of 10ns; Delay from STOP => 10 * 10 ns = 100 ns
+    gate_width                ::Unsigned   | 2 #multiples of 10ns;  Gate width in sys clock cycles => 2 * 10 ns = 20 ns
 
     stop_clk_divider          ::Unsigned   | 0
     phase_offset              ::Float32    | 0.0 # ∈ [0.0, 360.0]
@@ -188,15 +188,11 @@ Base.@kwdef mutable struct QCBoard
     # PLL Setup
     which_OK_PLL    = nothing
 
-    # Power Supplies default values:
-    # NOTE: Is this the same as V_ddro?
-    VDD::Float32    = 1.1 # ring-oscillator power supply ∈ [0.7, 1.1] V
-    # NOTE: Is this the same as Vdd for the level-shifter or the inverter voltage for SPAD firing
-    VDDPIX::Float32 = 2.8 # VDDPIX 3V3 supply
-    VQ::Float32     = 1 # Quenching gate voltage
-    VEB::Float32    = 0.4
-    VNBL::Float32   = 0.5
-    VBD::Float32    = 0
+
+    VQ::Float32     = 0 # Quenching gate voltage
+    VEB::Float32    = 0 # Sensor logic voltage for SPAD pulse detection level
+    VNBL::Float32   = 0 # VDDOSC
+    VBD::Float32    = 0 # V_break_down = VHV
 
     # Info
     sensor_status::SensorStatus = Disconnected  # Other allowed value is 'Connected'
