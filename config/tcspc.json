@@ -20,7 +20,7 @@
   "delay": 18,
   "gate_width": 18,
 
-  "stop_clk_divider": 50,
+  "stop_clk_divider": 16,
   "phase_offset": 0.0,
 
   "last_row": 95,

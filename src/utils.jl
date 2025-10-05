@@ -233,6 +233,8 @@ end
 # Quickly loading firmware
 # =================================================================================
 
+# TODO: Change firmware releases destination to gitlab release and fetch from gitlab,
+# instead of requiring DATASTORE_3D_PATH to be mounted, as the later is less likely to happend due to access requiements.
 function find_qc_version(;fw_dir=nothing, fw_version="latest")
     # Find FW bitfile to write to the FPGA
     if fw_dir === nothing
