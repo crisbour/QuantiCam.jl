@@ -293,9 +293,9 @@ function set_delay!(qc::QCBoard, ΔT::Real)
     end
     div_fixed = get_wire_out_value(qc, STOP_CLK_DIVIDER_RESP)
     div_float = Float32(Int(div_fixed>>3)) / 32.0
-    stop_freq = 100.0 / div_float # in MHz
-    stop_period = 1 / stop_freq
-    phase = (ΔT / stop_period) * 360.0
+    stop_freq = 100e6 / div_float # in Hz
+    stop_period = 1 / stop_freq # in s
+    phase = (ΔT * 1e-9 / stop_period) * 360.0
     set_phase!(qc, phase)
 end
 
