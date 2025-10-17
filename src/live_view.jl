@@ -1,5 +1,6 @@
 using GLMakie
 using DataStructures
+import StatsBase
 
 export live_intensity, live_depth, live_histogram
 
@@ -26,7 +27,7 @@ end
 # Live view functions
 # ------------------------------------------------
 
-function live_intensity(qc::QCBoard; frames=50)
+function live_intensity(qc::QCBoard; frames=5)
     qc_lock = ReentrantLock()
 
     # Activate GLMakie
@@ -110,14 +111,14 @@ end
 function collect_tcspc_frame(
     qc::QCBoard,
     qc_lock::ReentrantLock,
-    frames::Threads.Atomic{Int},
+    n_frames::Threads.Atomic{Int},
     ch::Channel
 )
     while true
         try
             new_frames = lock(qc_lock) do
                 set_config!(qc, "tcspc")
-                capture_frames(qc, frames)
+                capture_frames(qc, n_frames)
             end
             filtered_frames = map(frame -> filter_code(frame), new_frames)
             tcspc_stream_missing = collect_frames(filtered_frames)
@@ -138,8 +139,9 @@ function collect_tcspc_pixel(
     n_frames::Threads.Atomic{Int},
     ch_pixel_idx::Channel{CartesianIndex},
     ch_pixel_values::Channel{Vector{T}}
-) where T <:Unsigned
+) where T <: Union{UInt8, UInt16}
     pixel_idx = CartesianIndex(qc.config.rows÷2, qc.config.cols÷2) # Start from the center pixel
+    @info "Start collecting TCSPC data for pixel: $pixel_idx with frames=$(n_frames[])"
     while true
         if isready(ch_pixel_idx)
             pixel_idx = take!(ch_pixel_idx)
@@ -152,6 +154,7 @@ function collect_tcspc_pixel(
             end
             filtered_pixel = collect(skipmissing(map(frame -> filter_code(frame[pixel_idx]), new_frames)))
             if !isopen(ch_pixel_values)
+                @error "Channel for pixel values is closed, exiting collect_tcspc_pixel"
                 break
             end
             put!(ch_pixel_values, filtered_pixel)
@@ -165,12 +168,15 @@ function collect_intensity_frame(
     qc::QCBoard,
     qc_lock::ReentrantLock,
     n_frames::Threads.Atomic{Int},
-    ch::Channel
-)
+    ch::Channel{Matrix{T}};
+    delay = 0.02
+) where T <: Unsigned
+    @info "Start collecting intensity frames with n_frames=$(n_frames[])"
     while true
         try
             intensity_frames = lock(qc_lock) do
                 set_config!(qc, "intensity")
+                # FIXME: QuantiCam.jl use Result.jl types instead of exception to reduce overhead to stack unrolling when panicking
                 capture_frames(qc, n_frames[])
             end
             intensity_frame = reduce(.+, intensity_frames)
@@ -181,11 +187,45 @@ function collect_intensity_frame(
         catch e
             @error "Error in collect_intensity thread: $e => Skip this time"
         end
+        Threads.sleep(delay)
+    end
+end
+
+function collect_hist_pixel(
+    n_frames::Threads.Atomic{Int},
+    bin_width::Threads.Atomic{Int},
+    ch_pixel_values::Channel{Vector{T}},
+    ch_pixel_hist::Channel #{StatsBase.Histogram{T, 1, AbstractArray{T}}}
+) where T <: Union{UInt8, UInt16}
+    @info "Start collecting histogram for pixel with n_frames=$(n_frames[]), bin_width=$(bin_width[])"
+    cbuf = CircularBuffer{T}(1024)
+    while true
+        try
+            if !isopen(ch_pixel_values)
+                break
+            end
+            pixel_values = take!(ch_pixel_values)
+
+            append!(cbuf, pixel_values)
+            if (length(cbuf) < n_frames[])
+                continue
+            end
+            start_idx = length(cbuf) - n_frames[] + 1
+            stop_idx = length(cbuf)
+            hist = StatsBase.fit(StatsBase.Histogram{T}, cbuf[start_idx:stop_idx], 0:bin_width[]:4096)
+
+            if !isopen(ch_pixel_hist)
+                break
+            end
+            put!(ch_pixel_hist, hist)
+        catch e
+            @error "Error in collect_hist_pixel thread: $e => Skip this time"
+        end
     end
 end
 
 # Live histogram view
-function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
+function live_histogram(qc::QCBoard; n_frames_step=100, n_intensity_frames=32)
     qc_lock = ReentrantLock()
 
     # Activate GLMakie
@@ -202,7 +242,6 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
         new_config!(qc, "intensity", intensity_config_config_path)
     end
 
-    cbuf = CircularBuffer{Matrix{UInt16}}(2048)
 
     fig = Figure(size=(1200, 600))
 
@@ -213,7 +252,7 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
     # ---------------------------------
     menu_intensity = Menu(fig, options = ["viridis", "lajolla", "heat", "blues"], default = "viridis")
     intensity_slg = SliderGrid(fig,
-        (label="Exposure Time", range = Unsigned.(2 .^ (2:9)), startvalue=Unsigned(32)),
+        (label="Exposure Time", range = Unsigned.(2 .^ (2:9)), startvalue=Unsigned(8)),
         (label="Frames", range = Unsigned.(1:200), startvalue=Unsigned(n_intensity_frames)))
     g_intensity[1,1] = vgrid!(
         hgrid!(
@@ -237,8 +276,9 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
     # ---------------------------------
     hist_slg = SliderGrid(fig,
         (label="Exposure Time", range = Unsigned.(2 .^ (2:10)), startvalue=Unsigned(128)),
-        (label="Frames", range = Unsigned.(1:500), startvalue=Unsigned(n_frames)),
-        (label="Histogram bins", range = 2 .^ (2:12), startvalue=100),
+        (label="Frames", range = Unsigned.(1:4000), startvalue=Unsigned(n_frames_step)),
+        (label="Frames step", range = Unsigned.(2 .^ (4:10)), startvalue=Unsigned(n_frames_step)),
+        (label="Histogram bin width", range = 2 .^ (0:8), startvalue=32),
         (label="Phase offset", range = 0:5:360, startvalue=0)
     )
     g_hist[1,1] = vgrid!(
@@ -248,10 +288,12 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
     # Plot initial heatmap and get the plot object for updating
     ax_hist = Axis(g_hist[2, 1], limits=((0,4096), (0,50)), title=lift(x -> "Histogram of pixel $x", pixel_idx_hist))
     data_hist = zeros(UInt16, 2000)
-    pixel_hist = Ref(hist!(ax_hist, data_hist, bins=100))
+    pixel_hist = Ref(barplot!(ax_hist, 0:32:4095, fill(UInt16(0), 128), color=:dodgerblue))
 
     # Thread-safe variable for frames
-    n_frames_atomic = Threads.Atomic{Int}(n_frames)
+    n_frames_step_atomic = Threads.Atomic{Int}(n_frames_step)
+    n_frames_atomic = Threads.Atomic{Int}(n_frames_step)
+    bin_width_atomic = Threads.Atomic{Int}(32)
 
     ch_pixel_idx = Channel{CartesianIndex}(1)
 
@@ -259,7 +301,11 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
     intensity_producer = Threads.@spawn collect_intensity_frame(qc, qc_lock, n_intensity_frames_atomic, ch_intensity_frame)
 
     ch_tcspc_pixel = Channel{Vector{UInt16}}(1)
-    tcspc_producer = Threads.@spawn collect_tcspc_pixel(qc, qc_lock, n_frames_atomic, ch_pixel_idx, ch_tcspc_pixel)
+    tcspc_producer = Threads.@spawn collect_tcspc_pixel(qc, qc_lock, n_frames_step_atomic, ch_pixel_idx, ch_tcspc_pixel)
+
+    #ch_tcspc_hist = Channel{StatsBase.Histogram{UInt16,1, NTuple{1, AbstractArray{UInt16}}}}(1)
+    ch_tcspc_hist = Channel(1)
+    hist_producer = Threads.@spawn collect_hist_pixel(n_frames_atomic, bin_width_atomic,  ch_tcspc_pixel, ch_tcspc_hist)
 
     display(fig)
 
@@ -305,11 +351,15 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
         on(hist_slg.sliders[2].value) do slider_frames
             n_frames_atomic[] = slider_frames
         end
-        on(hist_slg.sliders[3].value) do bins
-            delete!(ax_hist, pixel_hist[])  # Clear the axis before re-plotting
-            pixel_hist[] = hist!(ax_hist, data_hist, bins=bins)
+        on(hist_slg.sliders[3].value) do slider_frames_step
+            n_frames_step_atomic[] = slider_frames_step
         end
-        on(hist_slg.sliders[4].value) do phase_offset
+        on(hist_slg.sliders[4].value) do bin_width
+            bin_width_atomic = bin_width
+            delete!(ax_hist, pixel_hist[])  # Clear the axis before re-plotting
+            pixel_hist[] = barplot!(ax_hist, 0:bin_width:4095, fill(UInt16(0), 4096 ÷ bin_width), color=:dodgerblue)
+        end
+        on(hist_slg.sliders[5].value) do phase_offset
             lock(qc_lock) do
                 set_phase!(qc, phase_offset)
             end
@@ -322,8 +372,13 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
                     intensity_frame = take!(ch_intensity_frame)
                     hm_intensity[1] = intensity_frame # Update heatmap data
                 end
-                if isready(ch_tcspc_pixel)
-                    pixel_hist[][1] = take!(ch_tcspc_pixel)
+                if isready(ch_tcspc_hist)
+                    hist = take!(ch_tcspc_hist)
+                    if (4096 ÷ bin_width_atomic[]) == length(hist.weights)
+                        pixel_hist[][1] = hist.edges[1][1:end-1]
+                        pixel_hist[][2] = hist.weights
+                    end
+                    #pixel_hist[] = barplot!(ax_hist, hist.edges[1][1:end-1], hist.weights, color=:dodgerblue)
                 end
 
                 yield() # Force redraw/update
@@ -336,10 +391,12 @@ function live_histogram(qc::QCBoard; n_frames=100, n_intensity_frames=50)
 
     bind(ch_intensity_frame, intensity_producer)
     bind(ch_tcspc_pixel, tcspc_producer)
+    #bind(ch_tcspc_hist, hist_producer)
     wait(consumer)
     close(ch_intensity_frame)
     close(ch_tcspc_pixel)
     close(ch_pixel_idx)
+    close(ch_tcspc_hist)
 end
 
 # Live depth view
