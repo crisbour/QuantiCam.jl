@@ -32,7 +32,7 @@ end
 function capture_frame(qc::QCBoard)::Union{Matrix{UInt8},Matrix{UInt16}}
     # Captures the requested amount of data (size) from the sensor.
     words = qc.config.frame_size
-    packet = 256
+    packet = 1024
 
     activate_trigger_in(qc, PIX_RST)
     activate_trigger_in(qc, FIFO_RST)
@@ -73,7 +73,7 @@ function capture_frames(
 )::Vector{Matrix{UInt16}} where {T}
     # Captures the requested amount of data (size) from the sensor.
     words = number_of_frames * qc.config.frame_size
-    packet = 8192
+    packet = 1024
     if (element_size(qc) == 1)
         data_8bits::Vector{UInt8} = fill(UInt16(0), words)
     else
