@@ -355,7 +355,7 @@ function live_histogram(qc::QCBoard; n_frames_step=100, n_intensity_frames=32)
             n_frames_step_atomic[] = slider_frames_step
         end
         on(hist_slg.sliders[4].value) do bin_width
-            bin_width_atomic = bin_width
+            bin_width_atomic[] = bin_width
             delete!(ax_hist, pixel_hist[])  # Clear the axis before re-plotting
             pixel_hist[] = barplot!(ax_hist, 0:bin_width:4095, fill(UInt16(0), 4096 ÷ bin_width), color=:dodgerblue)
         end
