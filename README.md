@@ -18,6 +18,42 @@ driver](https://pins.opalkelly.com/downloads).
 
 Julia needs to be installed and added to the Path.
 
+## Usage
+
+### Configure env path
+
+First we need to add `DATASTORE_3D_PATH` to point to the `3D_VISION` group
+datastore, where all the released firmware versions are placed. This API uses
+this env variable to search for the fw bitfile.
+
+```
+DATASTORE_3D_PATH=\\csce.ed.ac.uk\csce\eng\groups\3D_VISION
+```
+
+### GUI Demo
+
+From the terminal, making sure you have `Julia` in the path, run `julia` in the
+`QuantiCam.jl` root repository path.
+
+```shell
+julia > 
+
+# Press ] to switch to Pkg mode
+(@v1.11) pkg> activate .
+(@v1.11) pkg> instantiate
+```
+
+Then return to Julia mode pressing backspace
+
+```julia
+using GLMakie
+using QuantiCam
+qc = load_qc(config_path="./config/photon_cnt.json")
+live_histogram(qc)
+```
+```
+```
+
 ## Operation pipeline
 
 [Mermaid
