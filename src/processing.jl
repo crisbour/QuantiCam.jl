@@ -1,3 +1,6 @@
+export filter_code, collect_frames, build_histogram, decode_histogram_to_depth
+
+
 function collect_frames(v::Vector{Matrix{T}}) where T
     n_rows = size(v[1], 1)
     n_cols = size(v[1], 2)
@@ -214,4 +217,103 @@ function decode_frame_data(tdc_pixels::Array{UInt16})
         zip(data_decoded_coarse, data_decoded_fine),
     )
     data_decoded
+end
+
+# ==================================================
+# Functions for histogram building and depth decoding
+# ==================================================
+
+"""
+    Module for building histograms from TCSPC stream data
+    Inputs:
+        - tcspc_stream: Matrix of Vectors containing TCSPC data per pixel
+        - num_bins: Desired number of bins for the histogram
+        - max_tdc: Maximum TDC code (default 4095)
+    Ouptputs:
+        - histograms: Matrix of Vectors containing histogram data per pixel
+"""
+
+function build_histogram(tcspc_stream::Matrix{Vector{T}}, num_bins::Int, max_tdc::Int=4095) where T
+    # Build histogram from TCSPC stream data
+    H, W = size(tcspc_stream)
+    histograms = Matrix{Vector{T}}(undef, H, W)
+    rebin_factor = cld(max_tdc, num_bins)  # ceiling division
+    for i in 1:H, j in 1:W
+        # Extract B values for pixel (i,j), skip missing
+        values = collect(skipmissing(tcspc_stream[i, j]))
+
+        # Create histogram bin vector (counts per bin index)
+        h = zeros(UInt16, num_bins)
+
+        for v in values
+            if 1 ≤ v ≤ max_tdc
+                new_bin = clamp(fld(v - 1, rebin_factor) + 1, 1, num_bins)
+                h[new_bin] += 1
+            end
+        end
+
+        histograms[i, j] = h
+    end
+    return histograms # Matrix{Vector{T}}
+end
+
+"""
+    Decode histogram data to depth map
+    Inputs:
+        - histograms: Matrix of Vectors containing histogram data per pixel
+        - reach: Number of bins to consider around the maximum for centroid calculation (default 3)
+        - compensation: Optional matrix for depth compensation (default nothing)
+    Outputs:
+        - centroid: Matrix of Float64 containing estimated sub bin centroid per pixel
+"""
+function decode_histogram_to_depth(histograms::Matrix{Vector{T}}, reach::Int=3, compensation::Union{Matrix{Float64},Nothing}=nothing) where T
+    # Estimate depth map from histogram data
+    H, W = size(histograms)
+    centroid = Matrix{Float64}(undef, H, W)
+    for i in 1:H
+        for j in 1:W
+            pixel_histogram = histograms[i, j]  
+            medval = median(Float64.(pixel_histogram))
+            pixel_histogram = max.(Float64.(pixel_histogram) .- medval, 0.0)
+            centroid[i, j] = centroid_around_max(pixel_histogram, reach, medval)
+        end
+    end
+    if !isnothing(compensation)
+        @assert size(compensation) == size(centroid) "Compensation matrix size must match centroid size"
+        centroid .+= compensation
+    end
+    return centroid # Matrix{Float64}
+end
+
+"""
+    Compute centroid around the maximum value in the histogram
+    Inputs:
+        - histogram: Vector containing histogram data for a pixel
+        - centroid_reach: Number of bins to consider around the maximum (default 3)
+        - medval: Median value of the histogram for noise estimation (default 0.0)
+    Outputs:
+        - centroid: Float64 value representing the centroid position, or NaN if conditions not met
+"""
+function centroid_around_max(histogram::Vector{T}, centroid_reach::Int=3, medval::Float64=0.0) where T
+    # Compute the centroid of the histogram around the maximum value
+    # Find the index of the maximum value in the histogram
+    max_index = findmax(histogram)[2]
+    max_val = histogram[max_index]
+    if max_val >= 11*sqrt(medval)  && max_val > 5.0
+        hist_len = length(histogram)
+        # Determine the start and end indices for the centroid calculation
+        reach_below = min(centroid_reach, max_index - 1)
+        reach_above = min(centroid_reach, hist_len - max_index)
+        reach = min(reach_below, reach_above)
+
+        start_index = max_index - reach
+        end_index = max_index + reach
+
+        # Compute the centroid as the weighted average of the values in the histogram
+        centroid = sum((i * histogram[i] for i in start_index:end_index)) / (sum(histogram[start_index:end_index]) + 1e-6)
+        
+        return centroid # Float64
+    else
+        return NaN
+    end
 end

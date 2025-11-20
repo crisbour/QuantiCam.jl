@@ -83,7 +83,7 @@ function config_sensor(qc::QCBoard)
     end
 
     @debug "Initialize logic parameters necessary to interact with the sensor"
-    set_wire_in_value(qc, STOP_CLK_DIVIDER  , stop_clk_divider                    )
+    set_wire_in_value(qc, STOP_CLK_DIVIDER  , UInt32(stop_clk_divider)            )
     set_wire_in_value(qc, LAST_ROW          , qc.config.last_row                  )
     set_wire_in_value(qc, BYTE_SELECT       , UInt32(qc.config.byte_select)       )
     set_wire_in_value(qc, BYTE_SELECT_MSB   , UInt32(qc.config.byte_select_msb)   )

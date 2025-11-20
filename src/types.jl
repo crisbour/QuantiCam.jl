@@ -155,7 +155,7 @@ end
     gate_delay                ::Unsigned   | 10 #multiples of 10ns; Delay from STOP => 10 * 10 ns = 100 ns
     gate_width                ::Unsigned   | 2 #multiples of 10ns;  Gate width in sys clock cycles => 2 * 10 ns = 20 ns
 
-    stop_clk_divider          ::Unsigned   | 0
+    stop_clk_divider          ::Unsigned   | 0 # Divide the sys clk (100 MHz) by this number
     phase_offset              ::Float32    | 0.0 # ∈ [0.0, 360.0]
     last_row                  ::Unsigned   | 95
     byte_select               ::Bool       | false

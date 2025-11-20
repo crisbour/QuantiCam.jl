@@ -105,7 +105,7 @@ function capture_frames(
             put!(plot_channel, frame_data)
         end
         if hdf_channel !== nothing
-            frame_matrix = unwrap(frame_cast(frame_data, qc.config.rows, qc.config.cols))
+            frame_matrix = unwrap(frame_cast(frame_data, qc.config.rows, qc.config.cols; header_en = qc.config.header_en))
             put!(hdf_channel, frame_matrix)
         end
 

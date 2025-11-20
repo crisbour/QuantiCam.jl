@@ -61,7 +61,7 @@ const H5StreamType{T} = Union{AttributesDict,T,GroupConfig,Clear,Terminate}
 function hdf5_collector_init(
     path::String,
     ::Type{T};
-    description = Union{String,Nothing} = nothing,
+    description::Union{String,Nothing} = nothing,
 )::Tuple{Task,Channel{H5StreamType{T}}} where {T}
     # TODO: benchmark on daq to find out suitable channel size
     # - Unbuffered channel should work best, but is there any concern about blocking due to write to disk?
