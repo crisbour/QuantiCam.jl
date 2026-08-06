@@ -259,7 +259,7 @@ Set delay of the LASER_STOP from the SPAD_STOP, in order to improve histogram wi
 - `qc::QCBoard`: The QCBoard instance
 - `ϕ::Real`: Phase shift in degrees, ϕ∈[0, 360]
 """
-function set_phase!(qc::QCBoard, ϕ::Real)
+function set_phase!(qc::QCBoard, ϕ::Real)::Float64
     for config in qc.configs
         change_config!(qc, config.config_name, :phase_offset, Float32(ϕ))
     end
@@ -270,12 +270,15 @@ function set_phase!(qc::QCBoard, ϕ::Real)
     # Based on firmware version, change division and phase accordingly
     if qc.firmware_revision >= FWRevision(2,0,0)
         # New FW version, phase offset is now in a separate register
+        written_phase_offset = Float64(round(qc.config.phase_offset * 1000)) / 1000
         set_wire_in_value(qc, LASER_STOP_PHASE, UInt32(round(qc.config.phase_offset * 1000))) # Phase offset in mdeg
-        @debug "Setting phase offset to $(qc.config.phase_offset) degrees"
+        @debug "Setting phase offset to $(written_phase_offset) degrees"
         activate_trigger_in(qc, CLKS_CONFIG_TRIGGER)
+        return written_phase_offset
     else
         # Old FW version, phase offset is set via the sync_delay_clk_cycles
         @error "Phase offset setting not supported in firmware versions < 2.0.0, use sync_delay_clk_cycles instead"
+        return NaN
     end
 end
 
@@ -286,7 +289,7 @@ Set delay of the LASER_STOP from the SPAD_STOP, in order to improve histogram wi
 - `qc::QCBoard`: The QCBoard instance
 - `ΔT::Real`: Delay in ns
 """
-function set_delay!(qc::QCBoard, ΔT::Real)
+function set_delay!(qc::QCBoard, ΔT::Real)::Float64
     if qc.sensor_status != SensorStatus.Connected
         @warn "Sensor not connected, cannot reconfigure"
         return
@@ -296,7 +299,9 @@ function set_delay!(qc::QCBoard, ΔT::Real)
     stop_freq = 100e6 / div_float # in Hz
     stop_period = 1 / stop_freq # in s
     phase = (ΔT * 1e-9 / stop_period) * 360.0
-    set_phase!(qc, phase)
+    written_phase = set_phase!(qc, phase)
+    written_delay = (written_phase / 360.0) * stop_period * 1e9 # in ns
+    return written_delay
 end
 
 # -------------------------------------

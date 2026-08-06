@@ -1,7 +1,6 @@
-export filter_code, collect_frames, build_histogram, decode_histogram_to_depth
+export filter_code, collect_frames, build_histogram, decode_histogram_to_depth, centroid_around_max, centroid, fwhm, histogram_maximum
 
-
-function collect_frames(v::Vector{Matrix{T}}) where T
+function collect_frames(v::Vector{Matrix{T}})::Matrix{Vector{T}} where T
     n_rows = size(v[1], 1)
     n_cols = size(v[1], 2)
     n_matrices = length(v)
@@ -15,121 +14,6 @@ function collect_frames(v::Vector{Matrix{T}}) where T
     return result
 end
 
-#=
-function check_g2_pixel_component_stream()
-  pixels = 2*(last_row+1)*64
-
-  number_of_tint = data_read(1)
-  data_8bits = data_read(2:end)
-
-  data_byte_1 = uint32(data_8bits(1:4:end))
-  data_byte_2 = uint32(data_8bits(2:4:end))
-  data_byte_3 = uint32(data_8bits(3:4:end))
-  data_byte_4 = uint32(data_8bits(4:4:end))
-  data_16bits_1 = bitor(bitshift(data_byte_2, 8), data_byte_1)
-  data_16bits_2 = bitor(bitshift(data_byte_4, 8), data_byte_3)
-  data_32bits = bitor(bitshift(data_16bits_2, 16), data_16bits_1)
-  clear data_read data_16bits_1 data_16bits_2 data_8bits data_byte_1 data_byte_2 data_byte_3 data_byte_4
-  #numerator or denominator component
-  component_flag = bitshift(bitand(data_32bits,2^31),-31)
-  row_header = bitshift(bitand(data_32bits,1073217536),-19)
-
-  #look for start of the first complete frame (first transfer will probably be a
-  #partial frame which will skew all the other frames by a certain number of
-  #pixels
-  for index = 1:number_of_tint*pixels*17
-      if(component_flag(index) == 1 && row_header(index) == 1)
-          start_index = index
-          break
-      end
-  end
-  start_index = 1
-  for i = 1:number_of_tint*pixels*17
-      if(component_flag(i) == 1)
-          data_noheader(i) = bitand(data_32bits(i),2^19-1)
-      else
-          data_noheader(i) = bitand(data_32bits(i),2^27-1)
-      end
-  end
-
-  g2_component_data = data_noheader(start_index:end)
-  clear data_noheader
-  remaining_tint = floor(size(g2_component_data,2)/pixels/17)
-
-  index = 0
-  for i = 1:remaining_tint
-      for j = 1:last_row+1 #rows
-          for ch = 1:17
-              for k = 1:128 #columns
-                  index = index+1
-                  tint_components(i,j,k,ch) = double(g2_component_data(index))
-              end
-          end
-      end
-  end
-
-  tint_components_pixels = reshape(tint_components,[remaining_tint,2*(last_row+1)*64,17])
-
-  for i = 1:remaining_tint
-      for j = 1:size(tint_components_pixels,2)
-          g2_curves(i,j,:) = double(tint_components_pixels(i,j,2:17).*2048/double(tint_components_pixels(i,j,1)^2))
-      end
-  end
-
-  plot(0:15,squeeze(g2_curves(1,1,:)))
-  xlabel("tau")
-  ylabel("g2")
-
-end
-
-function check_g2_tint()
-  last_row = 95;
-  pixels = 2*(last_row+1)*128;
-
-  #reads in file
-  fclose all;
-  fileid = fopen("g2_data.bin:","r");
-  data_read = fread(fileid,"uint16");
-  fclose all;
-  number_of_tint = data_read(1);
-  data_8bits = data_read(2:end);
-
-  data_byte_1 = uint32(data_8bits(1:4:end));
-  data_byte_2 = uint32(data_8bits(2:4:end));
-  data_byte_3 = uint32(data_8bits(3:4:end));
-  data_byte_4 = uint32(data_8bits(4:4:end));
-  data_16bits_1 = bitor(bitshift(data_byte_2, 8), data_byte_1);
-  data_16bits_2 = bitor(bitshift(data_byte_4, 8), data_byte_3);
-  data_32bits = bitor(bitshift(data_16bits_2, 16), data_16bits_1);
-  header = bitshift(bitand(data_32bits,4293918720),-20);
-  data_noheader = bitand(data_32bits,2^20-1);
-  g2 = double(data_noheader)/double(2^18);
-
-  #look for start of the first complete frame (first transfer will probably be a
-  #partial frame which will skew all the other frames by a certain number of
-  #pixels
-  for index = 1:number_of_tint
-      if(header(index) == header(index+1:index+15))
-          start_index = index;
-          break
-      end
-  end
-
-  remaining_tint = floor(size(g2(start_index:end),1)/16);
-
-  figure(1);
-  #display frames
-  pause on
-  for i = 1:remaining_tint
-      g2_curve = g2((i-1)*16+1:16*i);
-      plotG2Tint(g2_curve);
-      ylim([-1 4]);
-      drawnow;
-      pause(0.5);
-  end
-end
-
-=#
 
 # --------------------------------------------------
 # Qualify pixel reads to float + nan boxing based on codes
@@ -233,7 +117,11 @@ end
         - histograms: Matrix of Vectors containing histogram data per pixel
 """
 
-function build_histogram(tcspc_stream::Matrix{Vector{T}}, num_bins::Int, max_tdc::Int=4095) where T
+function build_histogram(
+    tcspc_stream::Matrix{Vector{T}},
+    num_bins::Int,
+    max_tdc::Int=4095
+)::Matrix{Vector{T}} where T <: Union{UInt16, UInt8}
     # Build histogram from TCSPC stream data
     H, W = size(tcspc_stream)
     histograms = Matrix{Vector{T}}(undef, H, W)
@@ -254,7 +142,7 @@ function build_histogram(tcspc_stream::Matrix{Vector{T}}, num_bins::Int, max_tdc
 
         histograms[i, j] = h
     end
-    return histograms # Matrix{Vector{T}}
+    return histograms
 end
 
 """
@@ -262,7 +150,7 @@ end
     Inputs:
         - histograms: Matrix of Vectors containing histogram data per pixel
         - reach: Number of bins to consider around the maximum for centroid calculation (default 3)
-        - compensation: Optional matrix for depth compensation (default nothing)
+        - compensation: Optional matrix for depth compensation caused by clock distribution network (default nothing)
     Outputs:
         - centroid: Matrix of Float64 containing estimated sub bin centroid per pixel
 """
@@ -285,6 +173,23 @@ function decode_histogram_to_depth(histograms::Matrix{Vector{T}}, reach::Int=3, 
     return centroid # Matrix{Float64}
 end
 
+function decode_histogram_to_depth(
+    histograms::Matrix{Histogram},
+    reach::Int=5;
+    compensation::Union{Matrix{Float64},Nothing}=nothing
+)::Matrix{Float64}
+    # Estimate depth map from histogram data
+    centroids = map(hist -> centroid(hist, reach), histograms)
+
+    if !isnothing(compensation)
+        @assert size(compensation) == size(centroids) "Compensation matrix size must match centroid size"
+        centroids .+= compensation
+    end
+
+    centroids
+end
+
+
 """
     Compute centroid around the maximum value in the histogram
     Inputs:
@@ -294,11 +199,10 @@ end
     Outputs:
         - centroid: Float64 value representing the centroid position, or NaN if conditions not met
 """
-function centroid_around_max(histogram::Vector{T}, centroid_reach::Int=3, medval::Float64=0.0) where T
+function centroid_around_max(histogram::Vector{T}, centroid_reach; medval::Float64=0.0) where T
     # Compute the centroid of the histogram around the maximum value
     # Find the index of the maximum value in the histogram
-    max_index = findmax(histogram)[2]
-    max_val = histogram[max_index]
+    max_val, max_index = findmax(histogram)
     if max_val >= 11*sqrt(medval)  && max_val > 5.0
         hist_len = length(histogram)
         # Determine the start and end indices for the centroid calculation
@@ -316,4 +220,61 @@ function centroid_around_max(histogram::Vector{T}, centroid_reach::Int=3, medval
     else
         return NaN
     end
+end
+
+function centroid(tdc_samples::Vector{T}, centroid_reach::Int=5)::Float64 where T<:Union{UInt8, UInt16}
+    # Compute the centroid of the histogram around the maximum value
+    # Find the index of the maximum value in the histogram
+    h = fit(Histogram, tdc_samples, UInt16.(0:1:4095))
+    return centroid_around_max(h, centroid_reach)
+end
+
+function centroid(h::Histogram{T,1,E}, centroid_reach::Int=5)::Float64 where {T,E}
+    # Compute the centroid of the histogram around the maximum value
+    # Find the index of the maximum value in the histogram
+    max_idx = findfirst(==(maximum(h.weights)), h.weights)
+    max_val = h.weights[max_idx]
+
+    if max_val > 5.0
+        # Determine the start and end indices for the centroid calculation
+        reach_below = min(centroid_reach, max_idx - 1)
+        reach_above = min(centroid_reach, length(h.weights) - max_idx)
+        reach = min(reach_below, reach_above)
+
+        start_index = max_idx - reach
+        end_index = max_idx + reach
+
+        # Compute the centroid as the weighted average of the values in the histogram
+        centroid = sum((h.edges[1][i] * h.weights[i] for i in start_index:end_index)) / (sum(h.weights[start_index:end_index]) + 1e-6)
+
+        return centroid
+    else
+        return NaN
+    end
+end
+
+function histogram_maximum(pixel_stream::Vector{T})::T where T <: Union{UInt16, UInt8}
+    h = fit(Histogram, pixel_stream, 0:1:4095)
+    idx = findfirst(==(maximum(h.weights)), h.weights)
+    return h.edges[1][idx]
+end
+
+function fwhm(h::Histogram{T,1})::T where T
+    max_idx = findfirst(==(maximum(h.weights)), h.weights)
+    max_val = h.weights[max_idx]
+    half_max = max_val / 2
+
+    # Find the indices where the histogram crosses half maximum
+    left_idx = max_idx
+    while left_idx > 1 && h.weights[left_idx] >= half_max
+        left_idx -= 1
+    end
+    right_idx = max_idx
+    while right_idx < length(h.weights) && h.weights[right_idx] >= half_max
+        right_idx += 1
+    end
+
+    fwhm_value = h.edges[1][right_idx] - h.edges[1][left_idx]
+
+    return fwhm_value
 end
