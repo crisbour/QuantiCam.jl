@@ -13,21 +13,21 @@
         ipython
         jupyter-core
         # Include the WebIO extension here
-        (
-          buildPythonPackage rec {
-            pname = "webio_jupyter_extension";
-            version = "0.1.0";
-            src = fetchPypi {
-              inherit pname version;
-              hash = "sha256-m0FJa4bdC1c02Z+YeFumjPSzzXWuXHBLl7usvxmO0rc=";
-            };
-            doCheck = false;
-            propagatedBuildInputs = [
-              # Specify dependencies
-              jupyter-packaging
-            ];
-          }
-        )
+          #(
+          #  buildPythonPackage rec {
+          #    pname = "webio_jupyter_extension";
+          #    version = "0.1.0";
+          #    src = fetchPypi {
+          #      inherit pname version;
+          #      hash = "sha256-m0FJa4bdC1c02Z+YeFumjPSzzXWuXHBLl7usvxmO0rc=";
+          #    };
+          #    doCheck = false;
+          #    propagatedBuildInputs = [
+          #      # Specify dependencies
+          #      jupyter-packaging
+          #    ];
+          #  }
+          #)
       ]);
       # NOTE: This uses the directory that was copied in the flake derivation rather than current path
       # This could be good for CI, but not so good for devShell, where the code changes dynamically
@@ -47,15 +47,14 @@
               pkg-config
               udev
               # GR.jl # Runs even without Xrender and Xext, but cannot save files, so those are required
-              xorg.libXt
-              xorg.libX11
-              xorg.libXrender
-              xorg.libXext
+              libxt
+              libx11
+              libxrender
+              libxext
               stdenv.cc.cc.lib
-              qt5.qtbase
-              qt5Full
+              qt6.qtbase          # provides libQt6Widgets.so.6 and friends
+              qt6.qtwayland       # optional, if on Waylandds
               libGL
-              glxinfo
               glfw
               freetype
               stdenv.cc.cc
@@ -75,7 +74,7 @@
             shellHook = ''
               export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${pkgs.udev}/lib:${pkgs.libGL}/lib
               # IJulia doesn't need to be part of this package, as this is necessary just for the example notebooks
-              julia --project -e 'using IJulia; installkernel("julia-qc", "--project=$(pwd())");'
+              julia --project -e 'using Revise; using IJulia; installkernel("julia-qc", "--project=$(pwd())");'
             '';
           };
         };
