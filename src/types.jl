@@ -1,51 +1,36 @@
 using Serde
 using ResultTypes
+using EnumX
 
 export QuantiCamError, cleanup!, QCBoard
 
-# --------------------------------------------------
-# Setup necessary and helper types
-# --------------------------------------------------
+# Fence enums in internal module using EnumX
+# to prevent namespace polution
 
-@enum PixelMode begin
+# ---------------------------------------------------
+# Necessary enum types for configurations
+# ---------------------------------------------------
+
+@enumx PixelMode begin
     Raw         = 0
     TCSPC       = 1
     PhotonCount = 2
 end
-@enum DecodeMode begin
+@enumx DecodeMode begin
     Encoded = 0
     Decoded = 2
     Partial = 3
 end
-@enum OutputMode begin
+@enumx OutputMode begin
     Standard    = 0
     Multievents = 1
     Histogram   = 2
     Sketch      = 3
 end
 
-@enum SensorStatus begin
+@enumx SensorStatus begin
     Disconnected
     Connected
-end
-
-struct BankInfo
-    addr::UInt8
-    size::UInt8
-    bit::UInt8
-end
-
-struct FWRevision
-    major::UInt8
-    minor::UInt8
-    micro::UInt8 # or path
-end
-Base.show(io::IO, fw_rev::FWRevision) = print(io, "$(fw_rev.major).$(fw_rev.minor).$(fw_rev.micro)")
-Base.isless(left::FWRevision, right::FWRevision) = (left.major, left.minor, left.micro) < (right.major, right.minor, right.micro)
-
-function Base.convert(::Type{Tuple}, x::BankInfo)
-    # Initialize state with current px and py values of IterPoints
-    return (x.addr, x.size, x.bit)
 end
 
 @enum BankEnum begin
@@ -124,6 +109,72 @@ end
     ERROR_FIFO
 end
 
+# ---------------------------------------------------
+# Error Values
+# ---------------------------------------------------
+@enum QuantiCamError begin
+    NO_ERROR                                     = 0
+    # Readout is ignorant to flow control, hence out_valid |-> out_ready
+    # => Decrease readout speed to avoid backpressure:
+    #   -> Increase piso_readout_delay
+    #   -> Increase exposure_time
+    ERROR_READOUT_NO_BLOCKING                    = 1
+    # ------------------------------------
+    # Pipeline errors
+    # ------------------------------------
+    ERROR_PIXEL_DECODE_BACKPRESSURE_NOT_EXPECTED = 2
+    ERROR_PIXEL_VALUES_PACK_INVALID_HEADER       = 3
+    ERROR_PIXEL_VALUES_PACK_NOT_ZERO_EXTENDED    = 4
+    ERROR_PIXEL_VALUES_PACK_MIXED_ENCODING_ERROR = 5
+    # Frame sync FIFO
+    ERROR_FIFO_SYNCHRONISER_ROW_OVERFLOW         = 6
+    ERROR_FIFO_SYNCHRONISER_COL_OVERFLOW         = 7
+    ERROR_FIFO_SYNCHRONISER_COL_LENGTH_ZERO      = 8
+    ERROR_FIFO_SYNCHRONISER_FRAME_IDX_MISMATCH   = 9
+    ERROR_FIFO_FRAME_COMITTED_BEFORE_END         = 10
+    ERROR_FIFO_SYNCHRONISER_MISSALIGNED          = 11
+    # Readout
+    ERROR_READOUT_FIFO_FULL                      = 12
+    ERROR_READOUT_FIFO_EMPTY                     = 13
+    # Miscellaneous
+    ERROR_CONFIG                                 = 14
+    ERROR_TIMEOUT_ERROR                          = 15
+    ERROR_DATA_INTEGRITY                         = 16
+    ERROR_UNEXPECTED_DATA                        = 17
+    ERROR_TEST                                   = 18
+    # Clock checks to protect the sensor chip
+    ERROR_STOP_CLK_INVALID                       = 19
+    ERROR_READOUT_SENSOR_NOT_ACTIVE              = 20
+    # External Clocks
+    ERROR_DPR_NOT_CONFIGURED                     = 21
+    ERROR_PLL_RESET                              = 22
+    ERROR_PLL_DELAYED_RESET                      = 23
+    ERROR_PLL_NOT_LOCKED                         = 24
+end
+
+# --------------------------------------------------
+# Setup necessary and helper types
+# --------------------------------------------------
+
+struct BankInfo
+    addr::UInt8
+    size::UInt8
+    bit::UInt8
+end
+
+struct FWRevision
+    major::UInt8
+    minor::UInt8
+    micro::UInt8 # or path
+end
+Base.show(io::IO, fw_rev::FWRevision) = print(io, "$(fw_rev.major).$(fw_rev.minor).$(fw_rev.micro)")
+Base.isless(left::FWRevision, right::FWRevision) = (left.major, left.minor, left.micro) < (right.major, right.minor, right.micro)
+
+function Base.convert(::Type{Tuple}, x::BankInfo)
+    # Initialize state with current px and py values of IterPoints
+    return (x.addr, x.size, x.bit)
+end
+
 @serde @default_value mutable struct QCConfig
     # Identifier
     config_name               ::String     | "default"
@@ -141,9 +192,9 @@ end
     row_enables               ::String     | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
     col_enables               ::String     | "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
 
-    pixel_mode                ::PixelMode  | TCSPC
-    decode_mode               ::DecodeMode | Decoded
-    output_mode               ::OutputMode | Standard
+    pixel_mode                ::PixelMode.T  | PixelMode.TCSPC
+    decode_mode               ::DecodeMode.T | DecodeMode.Decoded
+    output_mode               ::OutputMode.T | OutputMode.Standard
     header_en                 ::Bool       | true # Enable header in the output stream
 
     tcspc                     ::Bool       | false
@@ -195,7 +246,7 @@ Base.@kwdef mutable struct QCBoard
     VBD::Float32    = 0 # V_break_down = VHV
 
     # Info
-    sensor_status::SensorStatus = Disconnected  # Other allowed value is 'Connected'
+    sensor_status::SensorStatus.T = SensorStatus.Disconnected  # Other allowed value is 'Connected'
     firmware_revision::FWRevision = FWRevision(0,5,0)
 
     # --------------------------------------------------
@@ -283,45 +334,3 @@ function extract_header(row_pair::Vector{UInt8})::Vector{UInt8}
     row_pair[1:4]
 end
 
-# ---------------------------------------------------
-# Error Values
-# ---------------------------------------------------
-@enum QuantiCamError begin
-    NO_ERROR                                     = 0
-    # Readout is ignorant to flow control, hence out_valid |-> out_ready
-    # => Decrease readout speed to avoid backpressure:
-    #   -> Increase piso_readout_delay
-    #   -> Increase exposure_time
-    ERROR_READOUT_NO_BLOCKING                    = 1
-    # ------------------------------------
-    # Pipeline errors
-    # ------------------------------------
-    ERROR_PIXEL_DECODE_BACKPRESSURE_NOT_EXPECTED = 2
-    ERROR_PIXEL_VALUES_PACK_INVALID_HEADER       = 3
-    ERROR_PIXEL_VALUES_PACK_NOT_ZERO_EXTENDED    = 4
-    ERROR_PIXEL_VALUES_PACK_MIXED_ENCODING_ERROR = 5
-    # Frame sync FIFO
-    ERROR_FIFO_SYNCHRONISER_ROW_OVERFLOW         = 6
-    ERROR_FIFO_SYNCHRONISER_COL_OVERFLOW         = 7
-    ERROR_FIFO_SYNCHRONISER_COL_LENGTH_ZERO      = 8
-    ERROR_FIFO_SYNCHRONISER_FRAME_IDX_MISMATCH   = 9
-    ERROR_FIFO_FRAME_COMITTED_BEFORE_END         = 10
-    ERROR_FIFO_SYNCHRONISER_MISSALIGNED          = 11
-    # Readout
-    ERROR_READOUT_FIFO_FULL                      = 12
-    ERROR_READOUT_FIFO_EMPTY                     = 13
-    # Miscellaneous
-    ERROR_CONFIG                                 = 14
-    ERROR_TIMEOUT_ERROR                          = 15
-    ERROR_DATA_INTEGRITY                         = 16
-    ERROR_UNEXPECTED_DATA                        = 17
-    ERROR_TEST                                   = 18
-    # Clock checks to protect the sensor chip
-    ERROR_STOP_CLK_INVALID                       = 19
-    ERROR_READOUT_SENSOR_NOT_ACTIVE              = 20
-    # External Clocks
-    ERROR_DPR_NOT_CONFIGURED                     = 21
-    ERROR_PLL_RESET                              = 22
-    ERROR_PLL_DELAYED_RESET                      = 23
-    ERROR_PLL_NOT_LOCKED                         = 24
-end

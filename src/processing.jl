@@ -135,9 +135,9 @@ end
 # Qualify pixel reads to float + nan boxing based on codes
 # --------------------------------------------------
 
-function filter_code(tdc_pixel::T; decode_mode::DecodeMode=Decoded)::Union{T, Missing} where T <: Union{UInt8, UInt16}
+function filter_code(tdc_pixel::T; decode_mode=DecodeMode.Decoded)::Union{T, Missing} where T <: Union{UInt8, UInt16}
     # 0x04 is the code for missing data
-    if decode_mode == Decoded
+    if decode_mode == DecodeMode.Decoded
         if tdc_pixel isa UInt16
             if tdc_pixel == 0x1ff
                 return missing
@@ -158,7 +158,7 @@ end
 
 function filter_code(
     tdc_pixels::Array{T};
-    decode_mode::DecodeMode = Decoded,
+    decode_mode=DecodeMode.Decoded,
 )::Array{Union{T, Missing}} where T <: Union{UInt8, UInt16}
     map(x -> filter_code(x, decode_mode=decode_mode), tdc_pixels)
 end
@@ -272,7 +272,7 @@ function decode_histogram_to_depth(histograms::Matrix{Vector{T}}, reach::Int=3, 
     centroid = Matrix{Float64}(undef, H, W)
     for i in 1:H
         for j in 1:W
-            pixel_histogram = histograms[i, j]  
+            pixel_histogram = histograms[i, j]
             medval = median(Float64.(pixel_histogram))
             pixel_histogram = max.(Float64.(pixel_histogram) .- medval, 0.0)
             centroid[i, j] = centroid_around_max(pixel_histogram, reach, medval)
@@ -311,7 +311,7 @@ function centroid_around_max(histogram::Vector{T}, centroid_reach::Int=3, medval
 
         # Compute the centroid as the weighted average of the values in the histogram
         centroid = sum((i * histogram[i] for i in start_index:end_index)) / (sum(histogram[start_index:end_index]) + 1e-6)
-        
+
         return centroid # Float64
     else
         return NaN

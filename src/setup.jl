@@ -32,7 +32,7 @@ end
 
 # Configure Sensor
 function config_sensor(qc::QCBoard)
-    if qc.sensor_status != Connected
+    if qc.sensor_status != SensorStatus.Connected
         @error "Sensor not connected, cannot configure"
         return
     end
@@ -46,11 +46,11 @@ function config_sensor(qc::QCBoard)
     row_enables = reinterpret(UInt32, hex2bytes(qc.config.row_enables))
     col_enables = reinterpret(UInt32, hex2bytes(qc.config.col_enables))
 
-    if (!qc.config.tcspc && qc.config.pixel_mode == TCSPC)
+    if (!qc.config.tcspc && qc.config.pixel_mode == PixelMode.TCSPC)
         @warn "Pixel readout is set to TCSPC, but sensor is configure as PHOTON_CNT => Configure sensor in TCSPC mode"
         qc.config.tcspc = true
     end
-    if (qc.config.tcspc && qc.config.pixel_mode == PhotonCount)
+    if (qc.config.tcspc && qc.config.pixel_mode == PixelMode.PhotonCount)
         @warn "Pixel readout is set to PhotonCount, but sensor is configure as TCSPC => Configure sensor in PHOTON_CNT mode"
         qc.config.tcspc = false
     end
@@ -142,10 +142,10 @@ end
 # connect the sensor
 function sensor_connect(qc::QCBoard)
     # Check obj not already connected.
-    if qc.sensor_status == Connected
+    if qc.sensor_status == SensorStatus.Connected
         @warn "Sensor already connected!"
     else
-        qc.sensor_status = Connected
+        qc.sensor_status = SensorStatus.Connected
 
         #sys_rst
         activate_trigger_in(qc, SYS_RST)
@@ -244,10 +244,10 @@ function set_config!(qc::QCBoard, name::String)
     qc.configs[config_idx].dirty = false
     qc.config = qc.configs[config_idx]
 
-    if qc.sensor_status == Connected && (dirty || prev_name != qc.config.config_name)
+    if qc.sensor_status == SensorStatus.Connected && (dirty || prev_name != qc.config.config_name)
         @debug "Configuring sensor with config $(qc.config.config_name)"
         config_sensor(qc)
-    elseif qc.sensor_status != Connected
+    elseif qc.sensor_status != SensorStatus.Connected
         @warn "Sensor not connected, cannot reconfigure"
     end
 end
@@ -263,7 +263,7 @@ function set_phase!(qc::QCBoard, ϕ::Real)
     for config in qc.configs
         change_config!(qc, config.config_name, :phase_offset, Float32(ϕ))
     end
-    if qc.sensor_status != Connected
+    if qc.sensor_status != SensorStatus.Connected
         @warn "Sensor not connected, cannot reconfigure"
         return
     end
@@ -287,7 +287,7 @@ Set delay of the LASER_STOP from the SPAD_STOP, in order to improve histogram wi
 - `ΔT::Real`: Delay in ns
 """
 function set_delay!(qc::QCBoard, ΔT::Real)
-    if qc.sensor_status != Connected
+    if qc.sensor_status != SensorStatus.Connected
         @warn "Sensor not connected, cannot reconfigure"
         return
     end
