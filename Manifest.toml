@@ -1637,7 +1637,7 @@ version = "2.11.2"
 deps = ["BenchmarkTools", "Colors", "DataFrames", "DataStructures", "Dates", "EnumX", "FFTW", "GLM", "GLMakie", "H5Zlz4", "HDF5", "IJulia", "JLD2", "LinearAlgebra", "Logging", "OpalKelly", "PkgTemplates", "PlotlyJS", "Plots", "Printf", "Random", "Requires", "ResultTypes", "Serde", "Statistics", "StatsBase", "ThreadsX"]
 path = "."
 uuid = "42916ebc-e1b0-4bae-bca4-6df6ee911bda"
-version = "0.9.3"
+version = "0.9.4"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "JuliaSyntaxHighlighting", "Markdown", "Sockets", "StyledStrings", "Unicode"]

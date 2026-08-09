@@ -276,7 +276,7 @@ function live_histogram(qc::QCBoard; n_frames_step=100, n_intensity_frames=32)
     # ---------------------------------
     hist_slg = SliderGrid(fig,
         (label="Exposure Time", range = Unsigned.(2 .^ (2:10)), startvalue=Unsigned(128)),
-        (label="Frames", range = Unsigned.(1:4000), startvalue=Unsigned(n_frames_step)),
+        (label="Frames", range = Unsigned.(1:4000), startvalue=Unsigned(4*n_frames_step)),
         (label="Frames step", range = Unsigned.(2 .^ (4:10)), startvalue=Unsigned(n_frames_step)),
         (label="Histogram bin width", range = 2 .^ (0:8), startvalue=32),
         (label="Phase offset", range = 0:5:360, startvalue=0)
@@ -292,7 +292,7 @@ function live_histogram(qc::QCBoard; n_frames_step=100, n_intensity_frames=32)
 
     # Thread-safe variable for frames
     n_frames_step_atomic = Threads.Atomic{Int}(n_frames_step)
-    n_frames_atomic = Threads.Atomic{Int}(n_frames_step)
+    n_frames_atomic = Threads.Atomic{Int}(4*n_frames_step)
     bin_width_atomic = Threads.Atomic{Int}(32)
 
     ch_pixel_idx = Channel{CartesianIndex}(1)

@@ -2,7 +2,7 @@
 # Setup FPGA, Sensor and Configs
 # -------------------------------------
 
-export init_board!, config_sensor, set_config!, new_config!, set_phase!, set_delay!
+export init_board!, config_sensor, reload_config!, set_config!, new_config!, set_phase!, set_delay!, is_connected
 
 # Initialize FPGA with bitfile provided and settings in FPGA
 function init_board!(qc::QCBoard)
@@ -136,6 +136,8 @@ function config_sensor(qc::QCBoard)
         div_float = Float32(Int(2*(qc.config.stop_clk_divider+1)))
     end
 
+    sleep(0.5) # Wait for sensor to configure
+
     @info "Sensor configured with config \"$(qc.config.config_name)\" and STOP_CLK=$(100 / div_float) MHz and phase: $(qc.config.phase_offset) degrees"
 end
 
@@ -256,6 +258,17 @@ function set_config!(qc::QCBoard, name::String)
     elseif qc.sensor_status != SensorStatus.Connected
         @warn "Sensor not connected, cannot reconfigure"
     end
+end
+
+function reload_config!(qc::QCBoard)
+    config_path = qc.config.config_path
+    config_name = qc.config.config_name
+    config = deser_json(QCConfig, read(config_path))
+    config_idx = findfirst(p -> p.config_name == name, qc.configs)
+
+    @info "Reloading config \"$(config_name)\" from path $(config_path)"
+    qc.configs[config_idx] = config
+    set_config!(qc, config_name)
 end
 
 """

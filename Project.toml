@@ -1,6 +1,6 @@
 name = "QuantiCam"
 uuid = "42916ebc-e1b0-4bae-bca4-6df6ee911bda"
-version = "0.9.3"
+version = "0.9.4"
 authors = ["Cristi Bourceanu <bourceanu.cristi@gmail.com>"]
 
 [deps]
