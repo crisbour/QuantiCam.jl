@@ -2,7 +2,7 @@
 
 julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "cbd98dad452c9c78a8f600a3be1bb81a9165db60"
+project_hash = "b991a2dc27acc9252b95f37c70cf648604202ebc"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -456,6 +456,11 @@ deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "7bb1361afdb33c7f2b085aa49ea8fe1b0fb14e58"
 uuid = "2e619515-83b5-522b-bb60-26c02a35a201"
 version = "2.7.1+0"
+
+[[deps.ExprTools]]
+git-tree-sha1 = "d2e49e7efd29719d6f28b891b0e0e159daa9d2b4"
+uuid = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
+version = "0.1.11"
 
 [[deps.Extents]]
 git-tree-sha1 = "b309b36a9e02fe7be71270dd8c0fd873625332b4"
@@ -1234,6 +1239,12 @@ version = "1.2.0"
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 version = "1.11.0"
 
+[[deps.Mocking]]
+deps = ["Compat", "ExprTools"]
+git-tree-sha1 = "2c140d60d7cb82badf06d8783800d0bcd1a7daa2"
+uuid = "78c3b35d-d492-501b-9361-3d52fe80e533"
+version = "0.8.1"
+
 [[deps.ModernGL]]
 deps = ["Libdl"]
 git-tree-sha1 = "ac6cb1d8807a05cf1acc9680e09d2294f9d33956"
@@ -1436,6 +1447,12 @@ weakdeps = ["REPL"]
     [deps.Pkg.extensions]
     REPLExt = "REPL"
 
+[[deps.PkgTemplates]]
+deps = ["Dates", "InteractiveUtils", "LibGit2", "Mocking", "Mustache", "Parameters", "Pkg", "REPL", "UUIDs"]
+git-tree-sha1 = "9e7d877a9037f9aea491d00c2c4e1b1171b7a3fe"
+uuid = "14b8a8f1-9102-5b29-a752-f990bacb7fe1"
+version = "0.7.63"
+
 [[deps.PkgVersion]]
 deps = ["Pkg"]
 git-tree-sha1 = "f9501cc0430a26bc3d156ae1b5b0c1b47af4d6da"
@@ -1617,10 +1634,10 @@ version = "2.11.2"
     Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 
 [[deps.QuantiCam]]
-deps = ["BenchmarkTools", "DataFrames", "DataStructures", "Dates", "EnumX", "FFTW", "GLM", "GLMakie", "H5Zlz4", "HDF5", "IJulia", "JLD2", "LinearAlgebra", "Logging", "OpalKelly", "PlotlyJS", "Plots", "Printf", "Random", "Requires", "ResultTypes", "Serde", "Statistics", "StatsBase", "ThreadsX"]
+deps = ["BenchmarkTools", "Colors", "DataFrames", "DataStructures", "Dates", "EnumX", "FFTW", "GLM", "GLMakie", "H5Zlz4", "HDF5", "IJulia", "JLD2", "LinearAlgebra", "Logging", "OpalKelly", "PkgTemplates", "PlotlyJS", "Plots", "Printf", "Random", "Requires", "ResultTypes", "Serde", "Statistics", "StatsBase", "ThreadsX"]
 path = "."
 uuid = "42916ebc-e1b0-4bae-bca4-6df6ee911bda"
-version = "0.9.2"
+version = "0.9.3"
 
 [[deps.REPL]]
 deps = ["InteractiveUtils", "JuliaSyntaxHighlighting", "Markdown", "Sockets", "StyledStrings", "Unicode"]

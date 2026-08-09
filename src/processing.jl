@@ -1,6 +1,10 @@
-export filter_code, collect_frames, build_histogram, decode_histogram_to_depth, centroid_around_max, centroid, fwhm, histogram_maximum
+using StatsBase
 
-function collect_frames(v::Vector{Matrix{T}})::Matrix{Vector{T}} where T
+export filter_code, collect_frames, build_histogram, decode_histogram_to_depth, centroid_around_max, fwhm, histogram_maximum, decode_tcspc
+
+function collect_frames(
+    v::Vector{Matrix{T}}
+ )::Matrix{Vector{Base.nonmissingtype(T)}} where {T<:Union{UInt8,UInt16,Missing}}
     n_rows = size(v[1], 1)
     n_cols = size(v[1], 2)
     n_matrices = length(v)
@@ -11,7 +15,7 @@ function collect_frames(v::Vector{Matrix{T}})::Matrix{Vector{T}} where T
         result[i, j] = [v[k][i, j] for k in 1:n_matrices]
     end
 
-    return result
+    return  map(pixel -> collect(skipmissing(pixel)), result)
 end
 
 
@@ -23,7 +27,7 @@ function filter_code(tdc_pixel::T; decode_mode=DecodeMode.Decoded)::Union{T, Mis
     # 0x04 is the code for missing data
     if decode_mode == DecodeMode.Decoded
         if tdc_pixel isa UInt16
-            if tdc_pixel == 0x1ff
+            if tdc_pixel == 0xffc
                 return missing
             else
                 return tdc_pixel
@@ -54,6 +58,27 @@ end
 function filter_code(tdc_pixels::Array{T}, missing_code::Unsigned)::Array{Union{T, Missing}} where T <: Union{UInt8, UInt16}
     map(x -> filter_code(x, missing_code), tdc_pixels)
 end
+
+# NOTE: We invert the tdc codes axis because it's running as a STOP - START trigger
+# WARN: This was supposed to be done in firmware, but due to misshaps with fine bits decoding, we left it so
+function decode_tcspc(val::T)::Union{T,Missing} where T<:Union{UInt8, UInt16}
+    filtered_val= filter_code(val)
+    if T == UInt8
+        UInt8(255) .- filtered_val
+    else
+        UInt16(4095) .- filtered_val
+    end
+end
+
+function decode_tcspc(frame::Array{T})::Array{Union{T,Missing}} where T<:Union{UInt8, UInt16}
+    filtered_frame = filter_code(frame)
+    if T == UInt8
+        UInt8(255) .- filtered_frame
+    else
+        UInt16(4095) .- filtered_frame
+    end
+end
+
 # Assume each pixel might have a slightly different ring-oscillator,
 # hence, based on this inferred TDC clock, we convert the timestamp to calibrated qualified timestamps
 function calibrate_tdc(data::Array{Float32}, freq::Array{Float32})
@@ -199,37 +224,37 @@ end
     Outputs:
         - centroid: Float64 value representing the centroid position, or NaN if conditions not met
 """
-function centroid_around_max(histogram::Vector{T}, centroid_reach; medval::Float64=0.0) where T
-    # Compute the centroid of the histogram around the maximum value
-    # Find the index of the maximum value in the histogram
-    max_val, max_index = findmax(histogram)
-    if max_val >= 11*sqrt(medval)  && max_val > 5.0
-        hist_len = length(histogram)
-        # Determine the start and end indices for the centroid calculation
-        reach_below = min(centroid_reach, max_index - 1)
-        reach_above = min(centroid_reach, hist_len - max_index)
-        reach = min(reach_below, reach_above)
+#function centroid_around_max(histogram::Vector{T}, centroid_reach; medval::Float64=0.0) where T
+#    # Compute the centroid of the histogram around the maximum value
+#    # Find the index of the maximum value in the histogram
+#    max_val, max_index = findmax(histogram)
+#    if max_val >= 11*sqrt(medval)  && max_val > 5.0
+#        hist_len = length(histogram)
+#        # Determine the start and end indices for the centroid calculation
+#        reach_below = min(centroid_reach, max_index - 1)
+#        reach_above = min(centroid_reach, hist_len - max_index)
+#        reach = min(reach_below, reach_above)
+#
+#        start_index = max_index - reach
+#        end_index = max_index + reach
+#
+#        # Compute the centroid as the weighted average of the values in the histogram
+#        centroid = sum((i * histogram[i] for i in start_index:end_index)) / (sum(histogram[start_index:end_index]) + 1e-6)
+#
+#        return centroid # Float64
+#    else
+#        return NaN
+#    end
+#end
 
-        start_index = max_index - reach
-        end_index = max_index + reach
-
-        # Compute the centroid as the weighted average of the values in the histogram
-        centroid = sum((i * histogram[i] for i in start_index:end_index)) / (sum(histogram[start_index:end_index]) + 1e-6)
-
-        return centroid # Float64
-    else
-        return NaN
-    end
-end
-
-function centroid(tdc_samples::Vector{T}, centroid_reach::Int=5)::Float64 where T<:Union{UInt8, UInt16}
+function centroid_around_max(tdc_samples::Vector{T}, centroid_reach::Int=10)::Float64 where T<:Union{UInt8, UInt16}
     # Compute the centroid of the histogram around the maximum value
     # Find the index of the maximum value in the histogram
     h = fit(Histogram, tdc_samples, UInt16.(0:1:4095))
     return centroid_around_max(h, centroid_reach)
 end
 
-function centroid(h::Histogram{T,1,E}, centroid_reach::Int=5)::Float64 where {T,E}
+function centroid_around_max(h::Histogram{T,1,E}, centroid_reach::Int=10)::Float64 where {T,E}
     # Compute the centroid of the histogram around the maximum value
     # Find the index of the maximum value in the histogram
     max_idx = findfirst(==(maximum(h.weights)), h.weights)
@@ -253,24 +278,44 @@ function centroid(h::Histogram{T,1,E}, centroid_reach::Int=5)::Float64 where {T,
     end
 end
 
-function histogram_maximum(pixel_stream::Vector{T})::T where T <: Union{UInt16, UInt8}
+function histogram_maximum(pixel_stream::Vector{T}, filter=false)::T where T <: Union{UInt16, UInt8}
     h = fit(Histogram, pixel_stream, 0:1:4095)
-    idx = findfirst(==(maximum(h.weights)), h.weights)
-    return h.edges[1][idx]
+    return histogram_maximum(h, filter)
 end
 
-function fwhm(h::Histogram{T,1})::T where T
-    max_idx = findfirst(==(maximum(h.weights)), h.weights)
-    max_val = h.weights[max_idx]
+function histogram_maximum(h::Histogram{T,1,E}, filter=false) where {T,E}
+    if filter
+        weights_fourier = fft(h.weights)
+        bp_half_with = length(weights_fourier) ÷ 8
+        weights_fourier_bandlimited = copy(weights_fourier)
+        weights_fourier_bandlimited[bp_half_with:end-bp_half_with] .= 0
+        weights_bandlimited = real.(ifft(weights_fourier_bandlimited))
+        idx = findfirst(==(maximum(weights_bandlimited)), weights_bandlimited)
+        return h.edges[1][idx]
+    else
+        idx = findfirst(==(maximum(h.weights)), h.weights)
+        return h.edges[1][idx]
+    end
+end
+
+# Compute FWHM by bandpassing the histogram first,
+# then search for half maximum points on either side of the peak
+function fwhm(h::Histogram{T,1})::Float64 where T
+    weights_fourier = fft(h.weights)
+    bp_half_with = length(weights_fourier) ÷ 4
+    weights_fourier_bandlimited = copy(weights_fourier)
+    weights_fourier_bandlimited[bp_half_with:end-bp_half_with] .= 0 .+ 0
+    weights_bandlimited = real.(ifft(weights_fourier_bandlimited))
+    max_val, max_idx = findmax(weights_bandlimited)
     half_max = max_val / 2
 
     # Find the indices where the histogram crosses half maximum
     left_idx = max_idx
-    while left_idx > 1 && h.weights[left_idx] >= half_max
+    while left_idx > 1 && weights_bandlimited[left_idx] >= half_max
         left_idx -= 1
     end
     right_idx = max_idx
-    while right_idx < length(h.weights) && h.weights[right_idx] >= half_max
+    while right_idx < length(h.weights) && weights_bandlimited[right_idx] >= half_max
         right_idx += 1
     end
 

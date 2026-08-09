@@ -21,14 +21,10 @@ function measure_tdcs(qc::QCBoard, delay_range::Tuple{Float64, Float64}, frames_
         sleep(0.5)
 
         # DAQ
-        frames = capture_frames(qc, frames_count)
+        hists = capture_histograms(qc, frames_count, ones(qc.config.rows, qc.config.cols); filter=true)
 
-        # Processing
-        filtered_frames = map(frame -> QuantiCam.filter_code(frame), frames)
-        tcspc_stream_missing = collect_frames(filtered_frames)
-        tcspc_stream = map(pixel -> collect(skipmissing(pixel)), tcspc_stream_missing)
         #peaks = map(pixel -> get_maximum(pixel), tcspc_stream)
-        peaks = map(pixel_stream -> centroid_around_max(pixel_stream), tcspc_stream)
+        peaks = map(hist -> centroid_around_max(hist, 5), hists)
 
         for i in 1:qc.config.rows, j in 1:qc.config.cols
             append!(delayed_peaks[i, j], peaks[i, j])
@@ -47,7 +43,7 @@ function fit_hist(pixel_stream::Vector{T}, tdc_freq::Float64; filter=false)::His
     if filter
         counts_fourier = fft(counts)
         counts_fourier_bandlimited = copy(counts_fourier)
-        counts_fourier_bandlimited[350:end-350] .= 0 .+ 0im
+        counts_fourier_bandlimited[800:end-800] .= 0 .+ 0im
         counts = real.(ifft(counts_fourier_bandlimited))
     end
     Histogram(time, counts)
@@ -60,10 +56,9 @@ function capture_histograms(
     filter=false
 )::Matrix{Histogram}
     frames = capture_frames(qc, frames_count)
-    filtered_frames = map(frame -> QuantiCam.filter_code(frame), frames)
-    tcspc_stream_missing = collect_frames(filtered_frames)
-    tcspc_stream = map(pixel -> collect(skipmissing(pixel)), tcspc_stream_missing)
+    filtered_frames = map(frame -> decode_tcspc(frame), frames)
+    tcspc_stream = collect_frames(filtered_frames)
 
-    histograms = map((pixel_stream, tdc_freq,) -> fit_hist(pixel_stream, tdc_freq), zip(tcspc_stream, tdcs_freq))
+    histograms = map(((pixel_stream, tdc_freq),) -> fit_hist(pixel_stream, tdc_freq; filter=filter), zip(tcspc_stream, tdcs_freq))
     histograms
 end

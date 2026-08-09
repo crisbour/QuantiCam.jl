@@ -172,7 +172,7 @@ end
 # Disconnect the OK
 function sensor_disconnect(qc::QCBoard)
     # Check obj not already connected.
-    if qc.sensor_status == Disconnected
+    if qc.sensor_status == SensorStatus.Disconnected
         @warn "Sensor already disconnected!"
         return
     end
@@ -196,7 +196,11 @@ function sensor_disconnect(qc::QCBoard)
 
     # Set SensorStatus = 'Disconnected'
     @info "Disconnected from Sensor"
-    qc.sensor_status = Disconnected # Other allowed value is 'Connected'
+    qc.sensor_status = SensorStatus.Disconnected # Other allowed value is 'Connected'
+end
+
+function is_connected(qc::QCBoard)::Bool
+    return qc.sensor_status == SensorStatus.Connected
 end
 
 # -------------------------------------------------------------------
@@ -228,9 +232,11 @@ function new_config!(qc::QCBoard, name::String, config_path::String)
         set_config!(qc, name)
     end
 end
+
 function new_config!(qc::QCBoard, config_path::String)
     new_config!(qc, "default", config_path)
 end
+
 function set_config!(qc::QCBoard, name::String)
     # Find the config with the given name
     config_idx = findfirst(p -> p.config_name == name, qc.configs)
